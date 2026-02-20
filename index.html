@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>Dr. William Herbal - Prescription</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Libraries for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #2e7d32;      /* Herbal Green */
+            --primary-light: #4caf50;
+            --gold: #D4AF37;
+            --dark: #1a1a1a;
+            --light: #f9f9f9;
+            --border: #ddd;
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        body {
+            background: linear-gradient(145deg, #e8f0e8 0%, #d4e2d4 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* ================= CONTROL PANEL ================= */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 60px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .btn i { font-size: 1.2rem; }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1f5f22; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(46,125,50,0.3); }
+
+        .btn-gold { background: var(--gold); color: black; }
+        .btn-gold:hover { background: #c2a030; transform: translateY(-2px); }
+
+        .btn-dark { background: var(--dark); color: white; }
+        .btn-dark:hover { background: #2a2a2a; transform: translateY(-2px); }
+
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        /* ================= PRESCRIPTION PAPER ================= */
+        #prescription-paper {
+            background: white;
+            width: 100%;
+            max-width: 210mm; /* A4 size */
+            margin: 0 auto;
+            padding: 40px 35px;
+            box-shadow: var(--shadow);
+            border-radius: 16px;
+            color: #333;
+            transition: all 0.3s;
+        }
+
+        /* HEADER */
+        .header {
+            text-align: center;
+            border-bottom: 3px double var(--primary);
+            padding-bottom: 25px;
+            margin-bottom: 30px;
+        }
+
+        .logo-icon {
+            font-size: 3.5rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
+        }
+
+        .clinic-name {
+            font-family: 'Cinzel', serif;
+            font-size: 2.2rem;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .clinic-details {
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.7;
+            margin-top: 5px;
+        }
+        .clinic-details strong {
+            color: var(--gold);
+        }
+
+        /* PATIENT INFO */
+        .patient-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 25px;
+            background: #f4fcf4;
+            padding: 20px 25px;
+            border-radius: 20px;
+            border: 1px solid #d0e6d0;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: var(--dark);
+            min-width: 70px;
+            font-size: 0.95rem;
+        }
+        .input-line {
+            flex: 1;
+            border: none;
+            border-bottom: 1px dotted #aaa;
+            background: transparent;
+            padding: 8px 5px;
+            font-size: 1rem;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .input-line:focus {
+            border-bottom: 2px solid var(--primary);
+        }
+        input[type="date"].input-line {
+            color-scheme: light;
+        }
+
+        /* PRESCRIPTION TABLE */
+        .rx-symbol {
+            font-family: 'Cinzel', serif;
+            font-size: 3rem;
+            color: var(--gold);
+            margin: 10px 0 5px;
+            font-weight: 700;
+        }
+
+        .med-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+        }
+
+        .med-table th {
+            background: var(--primary);
+            color: white;
+            padding: 14px 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .med-table td {
+            padding: 6px 5px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        .med-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .med-input {
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: 0.2s;
+            background: white;
+        }
+        .med-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
+        }
+
+        .delete-btn {
+            color: #dc3545;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1.2rem;
+            padding: 8px 4px;
+            transition: 0.2s;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .delete-btn:hover {
+            background: rgba(220,53,69,0.1);
+            transform: scale(1.1);
+        }
+
+        /* NOTES SECTION */
+        .notes-section {
+            border: 2px solid #e0f0e0;
+            padding: 18px 20px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+            background: #fafefa;
+        }
+        .notes-title {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        .notes-area {
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 15px;
+            outline: none;
+            resize: vertical;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            min-height: 130px;
+            background: white;
+        }
+        .notes-area:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(46,125,50,0.1);
+        }
+
+        /* FOOTER */
+        .footer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .signature-box {
+            text-align: center;
+            flex: 1 1 150px;
+        }
+        .sign-line {
+            border-bottom: 2px solid #333;
+            margin-bottom: 8px;
+            height: 50px;
+            width: 100%;
+        }
+        .signature-box strong {
+            color: var(--dark);
+            font-size: 0.9rem;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #777;
+            margin-top: 40px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            font-style: italic;
+        }
+
+        /* ================= AUTO-SAVE NOTIFICATION ================= */
+        #save-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #save-toast.show { opacity: 1; }
+
+        /* ================= PRINT STYLES ================= */
+        @media print {
+            body { background: white; padding: 0; }
+            .controls, #save-toast, .delete-btn { display: none !important; }
+            #prescription-paper {
+                box-shadow: none;
+                border-radius: 0;
+                padding: 20px;
+                max-width: 100%;
+            }
+            .input-line, .med-input, .notes-area {
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                padding-left: 0;
+            }
+            .patient-info { background: #f9f9f9; border: 1px solid #ccc; }
+            .med-table td { border-bottom: 1px dashed #ccc; }
+            .sign-line { border-bottom: 2px solid black; }
+        }
+
+        /* ================= RESPONSIVE ================= */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .controls { padding: 12px 15px; gap: 8px; }
+            .btn { padding: 10px 16px; font-size: 0.9rem; }
+            #prescription-paper { padding: 20px 15px; }
+            .clinic-name { font-size: 1.8rem; }
+            .patient-info { grid-template-columns: 1fr; }
+            .footer { flex-direction: column; align-items: center; }
+            .signature-box { width: 80%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SAVE NOTIFICATION -->
+    <div id="save-toast">✅ Imesajiliwa kiotomatiki</div>
+
+    <!-- CONTROL PANEL -->
+    <div class="controls">
+        <button class="btn btn-primary" onclick="addRow()"><i class="fas fa-plus"></i> Ongeza Dawa</button>
+        <button class="btn btn-primary" onclick="saveAsPDF()"><i class="fas fa-file-pdf"></i> Hifadhi PDF</button>
+        <button class="btn btn-gold" onclick="downloadImage()"><i class="fas fa-image"></i> Picha</button>
+        <button class="btn btn-dark" onclick="window.print()"><i class="fas fa-print"></i> Chapisha</button>
+        <button class="btn btn-outline" onclick="loadSample()"><i class="fas fa-flask"></i> Sampuli</button>
+        <button class="btn btn-outline" onclick="clearAll()"><i class="fas fa-undo-alt"></i> Safisha</button>
+    </div>
+
+    <!-- PRESCRIPTION PAPER -->
+    <div id="prescription-paper">
+        <!-- Header -->
+        <div class="header">
+            <i class="fas fa-leaf logo-icon"></i>
+            <div class="clinic-name">DR. WILLIAM HERBAL CLINIC</div>
+            <div class="clinic-details">
+                P.O. Box 10780, Kitunda, Dar es Salaam<br>
+                Simu: <strong>+255 762 286 282</strong> | Email: info@drwilliam.com<br>
+                <strong>TIBA ASILI NA USHAURI</strong>
+            </div>
+        </div>
+
+        <!-- Patient Details -->
+        <div class="patient-info">
+            <div>
+                <div class="input-group">
+                    <label>Jina:</label>
+                    <input type="text" id="patient-name" class="input-line" placeholder="Jina la Mgonjwa" autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <label>Anwani:</label>
+                    <input type="text" id="patient-address" class="input-line" placeholder="Mahali anapoishi">
+                </div>
+            </div>
+            <div>
+                <div class="input-group">
+                    <label>Tarehe:</label>
+                    <input type="date" id="date-picker" class="input-line">
+                </div>
+                <div class="input-group">
+                    <label>Umri/Jinsia:</label>
+                    <input type="text" id="patient-age" class="input-line" placeholder="Mf: 30 / M">
+                </div>
+            </div>
+        </div>
+
+        <!-- Prescription Body -->
+        <div class="rx-symbol">Rx</div>
+        
+        <table class="med-table">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Jina la Dawa / Tiba</th>
+                    <th style="width: 20%;">Dosi (Kiasi)</th>
+                    <th style="width: 35%;">Maelekezo</th>
+                    <th style="width: 5%;"></th>
+                </tr>
+            </thead>
+            <tbody id="med-list">
+                <!-- Rows will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+
+        <!-- Doctor's Notes -->
+        <div class="notes-section">
+            <div class="notes-title">MAELEKEZO YA DOKTARI / USHAURI WA LISHE:</div>
+            <textarea id="doctor-notes" class="notes-area" placeholder="Andika hapa maelekezo maalum..."></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="signature-box">
+                <div class="sign-line"></div>
+                <strong>Sahihi ya Daktari</strong>
+            </div>
+            <div class="signature-box">
+                <div class="sign-line"></div>
+                <strong>Muhuri wa Clinic</strong>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            "Afya yako ndio furaha yetu. Tumia dawa kama ulivyoelekezwa."<br>
+            Karibu tena Dr. William Herbal Clinic.
+        </div>
+    </div>
+
+<script>
+    (function() {
+        // ---------- AUTO-SAVE & LOAD ----------
+        const STORAGE_KEY = 'drwilliam_prescription';
+
+        // DOM elements
+        const medList = document.getElementById('med-list');
+        const patientName = document.getElementById('patient-name');
+        const patientAddress = document.getElementById('patient-address');
+        const datePicker = document.getElementById('date-picker');
+        const patientAge = document.getElementById('patient-age');
+        const doctorNotes = document.getElementById('doctor-notes');
+        const toast = document.getElementById('save-toast');
+
+        // Set today's date
+        datePicker.valueAsDate = new Date();
+
+        // Save to localStorage
+        function saveToStorage() {
+            const data = {
+                patientName: patientName.value,
+                patientAddress: patientAddress.value,
+                date: datePicker.value,
+                patientAge: patientAge.value,
+                notes: doctorNotes.value,
+                rows: []
+            };
+            document.querySelectorAll('#med-list tr').forEach(row => {
+                const inputs = row.querySelectorAll('.med-input');
+                data.rows.push({
+                    medicine: inputs[0]?.value || '',
+                    dosage: inputs[1]?.value || '',
+                    instruction: inputs[2]?.value || ''
+                });
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            // Show toast
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1500);
+        }
+
+        // Load from localStorage
+        function loadFromStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return false;
+            try {
+                const data = JSON.parse(saved);
+                patientName.value = data.patientName || '';
+                patientAddress.value = data.patientAddress || '';
+                datePicker.value = data.date || new Date().toISOString().slice(0,10);
+                patientAge.value = data.patientAge || '';
+                doctorNotes.value = data.notes || '';
+
+                // Clear existing rows
+                medList.innerHTML = '';
+                if (data.rows && data.rows.length > 0) {
+                    data.rows.forEach(r => {
+                        addRow(r.medicine, r.dosage, r.instruction);
+                    });
+                } else {
+                    // Default two empty rows
+                    addRow();
+                    addRow();
+                }
+                return true;
+            } catch (e) {
+                console.warn('Failed to load saved data', e);
+                return false;
+            }
+        }
+
+        // Add row (with optional prefill)
+        window.addRow = function(med = '', dose = '', instr = '') {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="med-input" value="${escapeHtml(med)}" placeholder="Jina la dawa"></td>
+                <td><input type="text" class="med-input" value="${escapeHtml(dose)}" placeholder="Mf: 1x3"></td>
+                <td><input type="text" class="med-input" value="${escapeHtml(instr)}" placeholder="Asubuhi, Mchana, Jioni"></td>
+                <td><i class="fas fa-times delete-btn" onclick="deleteRow(this)"></i></td>
+            `;
+            medList.appendChild(tr);
+            attachInputListeners(tr);
+        };
+
+        // Simple escape for innerHTML
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[&<>"]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return m;
+            });
+        }
+
+        // Attach input listeners to a row to trigger save
+        function attachInputListeners(row) {
+            row.querySelectorAll('.med-input').forEach(inp => {
+                inp.addEventListener('input', saveToStorage);
+            });
+        }
+
+        // Delete row (with confirmation)
+        window.deleteRow = function(icon) {
+            const row = icon.closest('tr');
+            if (!row) return;
+            if (document.querySelectorAll('#med-list tr').length <= 1) {
+                alert('Huwezi kufuta safu ya mwisho. Ongeza safu mpya kwanza.');
+                return;
+            }
+            if (confirm('Una uhakika unataka kufuta dawa hii?')) {
+                row.remove();
+                saveToStorage();
+            }
+        };
+
+        // Clear all fields
+        window.clearAll = function() {
+            if (confirm('Safisha taarifa zote?')) {
+                patientName.value = '';
+                patientAddress.value = '';
+                datePicker.valueAsDate = new Date();
+                patientAge.value = '';
+                doctorNotes.value = '';
+                medList.innerHTML = '';
+                addRow(); addRow(); // two empty rows
+                saveToStorage();
+            }
+        };
+
+        // Load sample data for demonstration
+        window.loadSample = function() {
+            patientName.value = 'Hamisi Juma';
+            patientAddress.value = 'Kitunda, Dar es Salaam';
+            patientAge.value = '45 / M';
+            doctorNotes.value = 'Epuka vyakula vya mafuta, kunywa maji mengi, tembea kila asubuhi.';
+            medList.innerHTML = '';
+            addRow('Moringa Powder', '1x2', 'Asubuhi na jioni kabla ya chakula');
+            addRow('Aloe Vera Juice', '100ml x1', 'Asubuhi kabla ya chakula');
+            addRow('Ginger & Garlic Capsule', '1x3', 'Baada ya chakula');
+            saveToStorage();
+        };
+
+        // Save PDF using jspdf + html2canvas
+        window.saveAsPDF = function() {
+            const element = document.getElementById('prescription-paper');
+            // Hide delete buttons temporarily
+            const deleteBtns = document.querySelectorAll('.delete-btn');
+            deleteBtns.forEach(btn => btn.style.display = 'none');
+
+            html2canvas(element, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            }).then(canvas => {
+                // Restore buttons
+                deleteBtns.forEach(btn => btn.style.display = '');
+
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = Math.min(pdfWidth / canvasWidth, pdfHeight / canvasHeight);
+                const imgWidth = canvasWidth * ratio;
+                const imgHeight = canvasHeight * ratio;
+                const x = (pdfWidth - imgWidth) / 2;
+                const y = 10; // small top margin
+
+                pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+                pdf.save('Prescription_' + Date.now() + '.pdf');
+            }).catch(err => {
+                console.error(err);
+                alert('Hitilafu katika kutengeneza PDF.');
+                deleteBtns.forEach(btn => btn.style.display = '');
+            });
+        };
+
+        // Download as image (JPG)
+        window.downloadImage = async function() {
+            const element = document.getElementById('prescription-paper');
+            const deleteBtns = document.querySelectorAll('.delete-btn');
+            deleteBtns.forEach(btn => btn.style.display = 'none');
+
+            try {
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                });
+                deleteBtns.forEach(btn => btn.style.display = '');
+
+                const link = document.createElement('a');
+                link.download = 'Prescription_' + Date.now() + '.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            } catch (err) {
+                alert('Hitilafu katika kupiga picha.');
+                deleteBtns.forEach(btn => btn.style.display = '');
+            }
+        };
+
+        // Attach save listeners to all input fields
+        function attachAllInputListeners() {
+            [patientName, patientAddress, datePicker, patientAge, doctorNotes].forEach(field => {
+                field.addEventListener('input', saveToStorage);
+            });
+            // For dynamic rows, attach when created
+        }
+
+        // Initialize
+        function init() {
+            // Load saved data or create default two rows
+            if (!loadFromStorage()) {
+                addRow();
+                addRow();
+            }
+            attachAllInputListeners();
+            // Also attach to existing rows
+            document.querySelectorAll('#med-list tr').forEach(row => attachInputListeners(row));
+        }
+
+        init();
+    })();
+</script>
+</body>
+</html>
