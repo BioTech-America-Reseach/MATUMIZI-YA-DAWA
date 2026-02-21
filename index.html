@@ -343,21 +343,25 @@
         }
         #save-toast.show { opacity: 1; }
 
-        /* ================= PRINT STYLES (IMEREKEBISHWA) ================= */
+        /* ================= PRINT STYLES - IMEBORESHA KABISA ================= */
         @media print {
+            /* Tumia styles maalum kwa ajili ya print */
             body, html {
-                overflow: visible !important; /* Ruhusa ya kusogea */
+                overflow: visible !important;
                 height: auto !important;
                 position: static !important;
                 background: white;
                 padding: 0;
                 margin: 0;
+                display: block;
             }
             
+            /* Ficha vitu visivyohitajika */
             .controls, #save-toast, .delete-btn { 
                 display: none !important; 
             }
             
+            /* Weka karatasi ya prescription iweze kuchapishwa vizuri */
             #prescription-paper {
                 box-shadow: none;
                 border-radius: 0;
@@ -365,21 +369,42 @@
                 max-width: 100%;
                 width: 100%;
                 margin: 0 auto;
-                page-break-after: avoid; /* Usivunje baada ya hii */
-                page-break-inside: avoid; /* Usivunje ndani ya hii */
+                page-break-after: avoid;
+                page-break-inside: auto; /* Ruhusu kuvunjika kwa kurasa ikiwa ni lazima */
+                background: white;
+                color: black;
             }
             
-            /* Hakikisha jedwali halikatiki */
+            /* Hakikisha jedwali linavunjika vizuri kwenye kurasa */
             .med-table {
-                page-break-inside: avoid;
+                page-break-inside: auto;
             }
             
-            /* Vipengele vyote vyakuweka pamoja */
+            .med-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            .med-table thead {
+                display: table-header-group; /* Rudia vichwa vya safu kila ukurasa */
+            }
+            
+            .med-table tbody {
+                page-break-inside: auto;
+            }
+            
+            /* Vipengele muhimu visivunjike ndani yao */
             .patient-info, .rx-symbol, .notes-section, .footer {
                 page-break-inside: avoid;
             }
             
-            /* Maandiko yawe yanaendelea vizuri */
+            /* Weka mipaka ya kurasa */
+            @page {
+                margin: 1.5cm;
+                size: A4;
+            }
+            
+            /* Maandiko yaonekane vizuri */
             .input-line, .med-input, .med-textarea, .notes-area {
                 border: none !important;
                 box-shadow: none !important;
@@ -387,30 +412,54 @@
                 padding-left: 0;
                 resize: none;
                 overflow: visible;
+                color: black !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             
+            /* Rangi za asili zibaki */
             .patient-info { 
-                background: #f9f9f9; 
-                border: 1px solid #ccc; 
+                background: #f9f9f9 !important; 
+                border: 1px solid #ccc !important; 
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             
             .med-table td { 
                 border-bottom: 1px dashed #ccc; 
             }
             
+            .med-table th {
+                background: var(--primary) !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
             .sign-line { 
                 border-bottom: 2px solid black; 
             }
             
-            /* Weka margins za kurasa */
-            @page {
-                margin: 1.5cm;
-                size: A4;
+            /* Hakikisha maelezo marefu hayakatiki */
+            .notes-area, .med-textarea {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
             
-            /* Hakikisha kila kitu kinaonekana */
+            /* Weka nafasi ya chini kwa ajili ya maelezo yote */
             .footer-note {
                 page-break-before: avoid;
+                margin-top: 30px;
+            }
+            
+            /* Hakikisha kila kitu kinaonekana kwenye kurasa nyingi */
+            #prescription-paper {
+                display: block;
+                overflow: visible !important;
             }
         }
 
@@ -493,7 +542,7 @@
                 <tr>
                     <th style="width: 35%;">Jina la Dawa / Tiba</th>
                     <th style="width: 20%;">Dosi (Kiasi)</th>
-                    <th style="width: 40%;">Maelekezo (4A)</th>
+                    <th style="width: 40%;">Maelekezo</th>
                     <th style="width: 5%;"></th>
                 </tr>
             </thead>
