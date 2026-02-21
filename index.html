@@ -204,6 +204,7 @@
             border-bottom: none;
         }
 
+        /* Inputs within table */
         .med-input {
             width: 100%;
             border: 1px solid #e0e0e0;
@@ -215,6 +216,25 @@
             background: white;
         }
         .med-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
+        }
+
+        /* Special style for instruction textarea */
+        .med-textarea {
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 8px 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: 0.2s;
+            background: white;
+            resize: vertical;
+            min-height: 60px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .med-textarea:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
         }
@@ -333,7 +353,7 @@
                 padding: 20px;
                 max-width: 100%;
             }
-            .input-line, .med-input, .notes-area {
+            .input-line, .med-input, .med-textarea, .notes-area {
                 border: none !important;
                 box-shadow: none !important;
                 background: transparent !important;
@@ -354,6 +374,12 @@
             .patient-info { grid-template-columns: 1fr; }
             .footer { flex-direction: column; align-items: center; }
             .signature-box { width: 80%; }
+            
+            /* Make table scrollable on very small screens */
+            .med-table {
+                display: block;
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
@@ -415,9 +441,9 @@
         <table class="med-table">
             <thead>
                 <tr>
-                    <th style="width: 40%;">Jina la Dawa / Tiba</th>
+                    <th style="width: 35%;">Jina la Dawa / Tiba</th>
                     <th style="width: 20%;">Dosi (Kiasi)</th>
-                    <th style="width: 35%;">Maelekezo</th>
+                    <th style="width: 40%;">Maelekezo (4A)</th> <!-- Sasa ina upana zaidi -->
                     <th style="width: 5%;"></th>
                 </tr>
             </thead>
@@ -478,11 +504,13 @@
                 rows: []
             };
             document.querySelectorAll('#med-list tr').forEach(row => {
-                const inputs = row.querySelectorAll('.med-input');
+                const medicine = row.querySelector('.med-input')?.value || '';
+                const dosage = row.querySelectorAll('.med-input')[1]?.value || '';
+                const instruction = row.querySelector('.med-textarea')?.value || '';
                 data.rows.push({
-                    medicine: inputs[0]?.value || '',
-                    dosage: inputs[1]?.value || '',
-                    instruction: inputs[2]?.value || ''
+                    medicine: medicine,
+                    dosage: dosage,
+                    instruction: instruction
                 });
             });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -527,7 +555,7 @@
             tr.innerHTML = `
                 <td><input type="text" class="med-input" value="${escapeHtml(med)}" placeholder="Jina la dawa"></td>
                 <td><input type="text" class="med-input" value="${escapeHtml(dose)}" placeholder="Mf: 1x3"></td>
-                <td><input type="text" class="med-input" value="${escapeHtml(instr)}" placeholder="Asubuhi, Mchana, Jioni"></td>
+                <td><textarea class="med-textarea" rows="2" placeholder="Asubuhi, Mchana, Jioni">${escapeHtml(instr)}</textarea></td>
                 <td><i class="fas fa-times delete-btn" onclick="deleteRow(this)"></i></td>
             `;
             medList.appendChild(tr);
@@ -548,7 +576,7 @@
 
         // Attach input listeners to a row to trigger save
         function attachInputListeners(row) {
-            row.querySelectorAll('.med-input').forEach(inp => {
+            row.querySelectorAll('.med-input, .med-textarea').forEach(inp => {
                 inp.addEventListener('input', saveToStorage);
             });
         }
