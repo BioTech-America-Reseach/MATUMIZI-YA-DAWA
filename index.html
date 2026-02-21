@@ -1,814 +1,410 @@
-<!DOCTYPE html>
-<html lang="sw">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
-    <title>Dr. William Herbal - Prescription</title>
-    
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Libraries for Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  Plus, 
+  Trash2, 
+  Printer, 
+  FileDown, 
+  Image as ImageIcon, 
+  RotateCcw, 
+  Sparkles, 
+  Leaf, 
+  Phone, 
+  Mail, 
+  MapPin,
+  Save,
+  Loader2
+} from 'lucide-react';
+// Fix: Import missing external libraries for PDF and image generation
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { MedicationRow, PrescriptionData } from './types';
+import { getHerbalInsight } from './services/geminiService';
 
-        :root {
-            --primary: #2e7d32;      /* Herbal Green */
-            --primary-light: #4caf50;
-            --gold: #D4AF37;
-            --dark: #1a1a1a;
-            --light: #f9f9f9;
-            --border: #ddd;
-            --shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+const STORAGE_KEY = 'dr_william_herbal_v1';
 
-        body {
-            background: linear-gradient(145deg, #e8f0e8 0%, #d4e2d4 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            font-family: 'Poppins', sans-serif;
-        }
+const App: React.FC = () => {
+  const [data, setData] = useState<PrescriptionData>({
+    patientName: '',
+    patientAddress: '',
+    date: new Date().toISOString().split('T')[0],
+    patientAgeGender: '',
+    medications: [
+      { id: '1', name: '', dosage: '', instructions: '' },
+      { id: '2', name: '', dosage: '', instructions: '' }
+    ],
+    doctorNotes: ''
+  });
 
-        /* ================= CONTROL PANEL ================= */
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            background: white;
-            padding: 15px 25px;
-            border-radius: 60px;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
-            justify-content: center;
-        }
+  const [isLoadingAI, setIsLoadingAI] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const paperRef = useRef<HTMLDivElement>(null);
 
-        .btn {
-            border: none;
-            padding: 12px 24px;
-            border-radius: 40px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
-            font-size: 1rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .btn i { font-size: 1.2rem; }
+  // Auto-save
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setData(parsed);
+      } catch (e) {
+        console.error("Failed to parse saved data", e);
+      }
+    }
+  }, []);
 
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #1f5f22; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(46,125,50,0.3); }
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    setShowToast(true);
+    const timer = setTimeout(() => setShowToast(false), 2000);
+    return () => clearTimeout(timer);
+  }, [data]);
 
-        .btn-gold { background: var(--gold); color: black; }
-        .btn-gold:hover { background: #c2a030; transform: translateY(-2px); }
+  const addRow = () => {
+    const newRow: MedicationRow = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: '',
+      dosage: '',
+      instructions: ''
+    };
+    setData(prev => ({ ...prev, medications: [...prev.medications, newRow] }));
+  };
 
-        .btn-dark { background: var(--dark); color: white; }
-        .btn-dark:hover { background: #2a2a2a; transform: translateY(-2px); }
+  const deleteRow = (id: string) => {
+    if (data.medications.length <= 1) return;
+    setData(prev => ({
+      ...prev,
+      medications: prev.medications.filter(row => row.id !== id)
+    }));
+  };
 
-        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
-        .btn-outline:hover { background: var(--primary); color: white; }
+  const updateRow = (id: string, field: keyof MedicationRow, value: string) => {
+    setData(prev => ({
+      ...prev,
+      medications: prev.medications.map(row => 
+        row.id === id ? { ...row, [field]: value } : row
+      )
+    }));
+  };
 
-        /* ================= PRESCRIPTION PAPER ================= */
-        #prescription-paper {
-            background: white;
-            width: 100%;
-            max-width: 210mm; /* A4 size */
-            margin: 0 auto;
-            padding: 40px 35px;
-            box-shadow: var(--shadow);
-            border-radius: 16px;
-            color: #333;
-            transition: all 0.3s;
-        }
+  const handleAIInsight = async (id: string, herbName: string) => {
+    if (!herbName.trim()) return;
+    setIsLoadingAI(id);
+    const insight = await getHerbalInsight(herbName);
+    updateRow(id, 'instructions', insight);
+    setIsLoadingAI(null);
+  };
 
-        /* HEADER */
-        .header {
-            text-align: center;
-            border-bottom: 3px double var(--primary);
-            padding-bottom: 25px;
-            margin-bottom: 30px;
-        }
+  const clearAll = () => {
+    if (confirm('Je, una uhakika unataka kufuta taarifa zote?')) {
+      setData({
+        patientName: '',
+        patientAddress: '',
+        date: new Date().toISOString().split('T')[0],
+        patientAgeGender: '',
+        medications: [
+          { id: '1', name: '', dosage: '', instructions: '' },
+          { id: '2', name: '', dosage: '', instructions: '' }
+        ],
+        doctorNotes: ''
+      });
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
 
-        .logo-icon {
-            font-size: 3.5rem;
-            color: var(--primary);
-            margin-bottom: 8px;
-            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
-        }
+  const loadSample = () => {
+    setData({
+      patientName: 'Hamisi Juma',
+      patientAddress: 'Kitunda, Dar es Salaam',
+      date: new Date().toISOString().split('T')[0],
+      patientAgeGender: '45 / ME',
+      medications: [
+        { id: '1', name: 'Moringa Powder', dosage: 'Kijiko 1 x 2', instructions: 'Changanya na maji moto au asali, tumia asubuhi na jioni kabla ya chakula.' },
+        { id: '2', name: 'Aloe Vera Juice', dosage: '50ml x 1', instructions: 'Kunywa asubuhi kabla ya kula chochote kwa ajili ya kusafisha mfumo wa mmeng\'enyo.' },
+        { id: '3', name: 'Ginger & Garlic Capsule', dosage: '1 x 3', instructions: 'Tumia baada ya kula chakula (Asubuhi, Mchana na Jioni).' }
+      ],
+      doctorNotes: 'Epuka vyakula vyenye sukari nyingi na mafuta. Kunywa maji lita 3 kwa siku. Fanya mazoezi ya kutembea kwa dakika 30 kila siku.'
+    });
+  };
 
-        .clinic-name {
-            font-family: 'Cinzel', serif;
-            font-size: 2.2rem;
-            color: var(--primary);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+  const exportPDF = async () => {
+    if (!paperRef.current) return;
+    // Fix: Use imported html2canvas directly
+    const canvas = await html2canvas(paperRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    // Fix: Use imported jsPDF directly
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const width = pdf.internal.pageSize.getWidth();
+    const height = (canvas.height * width) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+    pdf.save(`Prescription_${data.patientName || 'Mgonjwa'}_${data.date}.pdf`);
+  };
 
-        .clinic-details {
-            font-size: 0.95rem;
-            color: #555;
-            line-height: 1.7;
-            margin-top: 5px;
-        }
-        .clinic-details strong {
-            color: var(--gold);
-        }
+  const exportImage = async () => {
+    if (!paperRef.current) return;
+    // Fix: Use imported html2canvas directly
+    const canvas = await html2canvas(paperRef.current, { scale: 2 });
+    const link = document.createElement('a');
+    link.download = `Prescription_${data.patientName || 'Mgonjwa'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
 
-        /* PATIENT INFO */
-        .patient-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 25px;
-            background: #f4fcf4;
-            padding: 20px 25px;
-            border-radius: 20px;
-            border: 1px solid #d0e6d0;
-            margin-bottom: 30px;
-        }
+  return (
+    <div className="min-h-screen pb-20 px-4 md:px-0">
+      {/* Toast Notification */}
+      <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-800 text-white px-6 py-2 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center gap-2 pointer-events-none ${showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <Save size={16} />
+        <span>Imesajiliwa</span>
+      </div>
 
-        .input-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .input-group label {
-            font-weight: 600;
-            color: var(--dark);
-            min-width: 70px;
-            font-size: 0.95rem;
-        }
-        .input-line {
-            flex: 1;
-            border: none;
-            border-bottom: 1px dotted #aaa;
-            background: transparent;
-            padding: 8px 5px;
-            font-size: 1rem;
-            outline: none;
-            transition: border 0.2s;
-        }
-        .input-line:focus {
-            border-bottom: 2px solid var(--primary);
-        }
-        input[type="date"].input-line {
-            color-scheme: light;
-        }
+      {/* Control Panel */}
+      <header className="no-print sticky top-0 bg-white/80 backdrop-blur-md border-b border-green-100 z-40 py-4 shadow-sm mb-8">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-3 px-4">
+          <button onClick={addRow} className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95">
+            <Plus size={18} /> Ongeza Dawa
+          </button>
+          <button onClick={exportPDF} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95">
+            <FileDown size={18} /> PDF
+          </button>
+          <button onClick={exportImage} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95">
+            <ImageIcon size={18} /> Picha
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95">
+            <Printer size={18} /> Chapisha
+          </button>
+          <button onClick={loadSample} className="flex items-center gap-2 border-2 border-green-700 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg font-medium transition-all">
+            Sampuli
+          </button>
+          <button onClick={clearAll} className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg font-medium transition-all">
+            <RotateCcw size={18} /> Safisha
+          </button>
+        </div>
+      </header>
 
-        /* PRESCRIPTION TABLE */
-        .rx-symbol {
-            font-family: 'Cinzel', serif;
-            font-size: 3rem;
-            color: var(--gold);
-            margin: 10px 0 5px;
-            font-weight: 700;
-        }
+      {/* Main Prescription Paper */}
+      <main 
+        ref={paperRef} 
+        id="prescription-paper"
+        className="max-w-[210mm] mx-auto bg-white shadow-2xl rounded-xl p-10 md:p-14 border border-green-50 relative overflow-hidden"
+      >
+        {/* Background Watermark/Aesthetic Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-green-50 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-50 rounded-full blur-3xl opacity-20 -ml-48 -mb-48"></div>
 
-        .med-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-        }
-
-        .med-table th {
-            background: var(--primary);
-            color: white;
-            padding: 14px 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .med-table td {
-            padding: 6px 5px;
-            border-bottom: 1px solid #f0f0f0;
-            vertical-align: middle;
-        }
-        .med-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* Inputs within table */
-        .med-input {
-            width: 100%;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 10px 8px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: 0.2s;
-            background: white;
-        }
-        .med-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
-        }
-
-        /* Special style for instruction textarea */
-        .med-textarea {
-            width: 100%;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 8px 8px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: 0.2s;
-            background: white;
-            resize: vertical;
-            min-height: 60px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .med-textarea:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
-        }
-
-        .delete-btn {
-            color: #dc3545;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 1.2rem;
-            padding: 8px 4px;
-            transition: 0.2s;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .delete-btn:hover {
-            background: rgba(220,53,69,0.1);
-            transform: scale(1.1);
-        }
-
-        /* NOTES SECTION */
-        .notes-section {
-            border: 2px solid #e0f0e0;
-            padding: 18px 20px;
-            border-radius: 16px;
-            margin-bottom: 40px;
-            background: #fafefa;
-        }
-        .notes-title {
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-        .notes-area {
-            width: 100%;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 15px;
-            outline: none;
-            resize: vertical;
-            font-family: 'Poppins', sans-serif;
-            font-size: 0.95rem;
-            min-height: 130px;
-            background: white;
-        }
-        .notes-area:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(46,125,50,0.1);
-        }
-
-        /* FOOTER */
-        .footer {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 30px;
-            margin-top: 40px;
-        }
-        .signature-box {
-            text-align: center;
-            flex: 1 1 150px;
-        }
-        .sign-line {
-            border-bottom: 2px solid #333;
-            margin-bottom: 8px;
-            height: 50px;
-            width: 100%;
-        }
-        .signature-box strong {
-            color: var(--dark);
-            font-size: 0.9rem;
-        }
-
-        .footer-note {
-            text-align: center;
-            font-size: 0.85rem;
-            color: #777;
-            margin-top: 40px;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-            font-style: italic;
-        }
-
-        /* ================= AUTO-SAVE NOTIFICATION ================= */
-        #save-toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--dark);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 1000;
-        }
-        #save-toast.show { opacity: 1; }
-
-        /* ================= PRINT STYLES - IMEBORESHA KABISA ================= */
-        @media print {
-            /* Tumia styles maalum kwa ajili ya print */
-            body, html {
-                overflow: visible !important;
-                height: auto !important;
-                position: static !important;
-                background: white;
-                padding: 0;
-                margin: 0;
-                display: block;
-            }
-            
-            /* Ficha vitu visivyohitajika */
-            .controls, #save-toast, .delete-btn { 
-                display: none !important; 
-            }
-            
-            /* Weka karatasi ya prescription iweze kuchapishwa vizuri */
-            #prescription-paper {
-                box-shadow: none;
-                border-radius: 0;
-                padding: 20px;
-                max-width: 100%;
-                width: 100%;
-                margin: 0 auto;
-                page-break-after: avoid;
-                page-break-inside: auto; /* Ruhusu kuvunjika kwa kurasa ikiwa ni lazima */
-                background: white;
-                color: black;
-            }
-            
-            /* Hakikisha jedwali linavunjika vizuri kwenye kurasa */
-            .med-table {
-                page-break-inside: auto;
-            }
-            
-            .med-table tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-            }
-            
-            .med-table thead {
-                display: table-header-group; /* Rudia vichwa vya safu kila ukurasa */
-            }
-            
-            .med-table tbody {
-                page-break-inside: auto;
-            }
-            
-            /* Vipengele muhimu visivunjike ndani yao */
-            .patient-info, .rx-symbol, .notes-section, .footer {
-                page-break-inside: avoid;
-            }
-            
-            /* Weka mipaka ya kurasa */
-            @page {
-                margin: 1.5cm;
-                size: A4;
-            }
-            
-            /* Maandiko yaonekane vizuri */
-            .input-line, .med-input, .med-textarea, .notes-area {
-                border: none !important;
-                box-shadow: none !important;
-                background: transparent !important;
-                padding-left: 0;
-                resize: none;
-                overflow: visible;
-                color: black !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            /* Rangi za asili zibaki */
-            .patient-info { 
-                background: #f9f9f9 !important; 
-                border: 1px solid #ccc !important; 
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            .med-table td { 
-                border-bottom: 1px dashed #ccc; 
-            }
-            
-            .med-table th {
-                background: var(--primary) !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            
-            .sign-line { 
-                border-bottom: 2px solid black; 
-            }
-            
-            /* Hakikisha maelezo marefu hayakatiki */
-            .notes-area, .med-textarea {
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                height: auto !important;
-                min-height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-            }
-            
-            /* Weka nafasi ya chini kwa ajili ya maelezo yote */
-            .footer-note {
-                page-break-before: avoid;
-                margin-top: 30px;
-            }
-            
-            /* Hakikisha kila kitu kinaonekana kwenye kurasa nyingi */
-            #prescription-paper {
-                display: block;
-                overflow: visible !important;
-            }
-        }
-
-        /* ================= RESPONSIVE ================= */
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .controls { padding: 12px 15px; gap: 8px; }
-            .btn { padding: 10px 16px; font-size: 0.9rem; }
-            #prescription-paper { padding: 20px 15px; }
-            .clinic-name { font-size: 1.8rem; }
-            .patient-info { grid-template-columns: 1fr; }
-            .footer { flex-direction: column; align-items: center; }
-            .signature-box { width: 80%; }
-            
-            /* Make table scrollable on very small screens */
-            .med-table {
-                display: block;
-                overflow-x: auto;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- SAVE NOTIFICATION -->
-    <div id="save-toast">✅ Imesajiliwa kiotomatiki</div>
-
-    <!-- CONTROL PANEL -->
-    <div class="controls">
-        <button class="btn btn-primary" onclick="addRow()"><i class="fas fa-plus"></i> Ongeza Dawa</button>
-        <button class="btn btn-primary" onclick="saveAsPDF()"><i class="fas fa-file-pdf"></i> Hifadhi PDF</button>
-        <button class="btn btn-gold" onclick="downloadImage()"><i class="fas fa-image"></i> Picha</button>
-        <button class="btn btn-dark" onclick="window.print()"><i class="fas fa-print"></i> Chapisha</button>
-        <button class="btn btn-outline" onclick="loadSample()"><i class="fas fa-flask"></i> Sampuli</button>
-        <button class="btn btn-outline" onclick="clearAll()"><i class="fas fa-undo-alt"></i> Safisha</button>
-    </div>
-
-    <!-- PRESCRIPTION PAPER -->
-    <div id="prescription-paper">
-        <!-- Header -->
-        <div class="header">
-            <i class="fas fa-leaf logo-icon"></i>
-            <div class="clinic-name">DR. WILLIAM HERBAL CLINIC</div>
-            <div class="clinic-details">
-                P.O. Box 10780, Kitunda, Dar es Salaam<br>
-                Simu: <strong>+255 762 286 282</strong> | Email: info@drwilliam.com<br>
-                <strong>TIBA ASILI NA USHAURI</strong>
+        {/* Header */}
+        <div className="relative z-10 text-center border-b-4 border-double border-green-700 pb-8 mb-10">
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 bg-green-700 rounded-full flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform cursor-pointer">
+              <Leaf className="text-white" size={40} />
             </div>
+          </div>
+          <h1 className="font-cinzel text-3xl md:text-4xl text-green-900 tracking-widest mb-2">
+            DR. WILLIAM HERBAL CLINIC
+          </h1>
+          <p className="text-amber-700 font-medium tracking-widest text-sm mb-4 uppercase">Tiba Asili na Ushauri wa Lishe</p>
+          
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-slate-600 text-sm">
+            <span className="flex items-center gap-1"><MapPin size={14} className="text-green-700"/> P.O. Box 10780, Kitunda, DSM</span>
+            <span className="flex items-center gap-1"><Phone size={14} className="text-green-700"/> +255 762 286 282</span>
+            <span className="flex items-center gap-1"><Mail size={14} className="text-green-700"/> info@drwilliam.com</span>
+          </div>
         </div>
 
-        <!-- Patient Details -->
-        <div class="patient-info">
-            <div>
-                <div class="input-group">
-                    <label>Jina:</label>
-                    <input type="text" id="patient-name" class="input-line" placeholder="Jina la Mgonjwa" autocomplete="off">
-                </div>
-                <div class="input-group">
-                    <label>Anwani:</label>
-                    <input type="text" id="patient-address" class="input-line" placeholder="Mahali anapoishi">
-                </div>
+        {/* Patient Details Form */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-green-50/50 p-6 rounded-2xl border border-green-100 mb-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <label className="font-semibold text-slate-700 w-20 shrink-0">Jina:</label>
+              <input 
+                type="text" 
+                placeholder="Ingiza jina la mgonjwa"
+                className="bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 placeholder:italic transition-colors"
+                value={data.patientName}
+                onChange={e => setData(prev => ({ ...prev, patientName: e.target.value }))}
+              />
             </div>
-            <div>
-                <div class="input-group">
-                    <label>Tarehe:</label>
-                    <input type="date" id="date-picker" class="input-line">
-                </div>
-                <div class="input-group">
-                    <label>Umri/Jinsia:</label>
-                    <input type="text" id="patient-age" class="input-line" placeholder="Mf: 30 / M">
-                </div>
+            <div className="flex items-center gap-3">
+              <label className="font-semibold text-slate-700 w-20 shrink-0">Anwani:</label>
+              <input 
+                type="text" 
+                placeholder="Mahali anapoishi"
+                className="bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 transition-colors"
+                value={data.patientAddress}
+                onChange={e => setData(prev => ({ ...prev, patientAddress: e.target.value }))}
+              />
             </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <label className="font-semibold text-slate-700 w-24 shrink-0 text-right md:text-left">Tarehe:</label>
+              <input 
+                type="date" 
+                className="bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 transition-colors"
+                value={data.date}
+                onChange={e => setData(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="font-semibold text-slate-700 w-24 shrink-0 text-right md:text-left">Umri/Jinsia:</label>
+              <input 
+                type="text" 
+                placeholder="Mf: 35 / KE"
+                className="bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 transition-colors"
+                value={data.patientAgeGender}
+                onChange={e => setData(prev => ({ ...prev, patientAgeGender: e.target.value }))}
+              />
+            </div>
+          </div>
         </div>
 
-        <!-- Prescription Body -->
-        <div class="rx-symbol">Rx</div>
-        
-        <table class="med-table">
+        {/* Prescription Header Symbol */}
+        <div className="font-cinzel text-5xl text-amber-600 mb-4 ml-2 select-none">Rx</div>
+
+        {/* Medication Table */}
+        <div className="overflow-visible mb-10">
+          <table className="w-full border-collapse">
             <thead>
-                <tr>
-                    <th style="width: 35%;">Jina la Dawa / Tiba</th>
-                    <th style="width: 20%;">Dosi (Kiasi)</th>
-                    <th style="width: 40%;">Maelekezo</th>
-                    <th style="width: 5%;"></th>
-                </tr>
+              <tr className="bg-green-700 text-white rounded-t-lg">
+                <th className="text-left py-3 px-4 font-semibold text-sm rounded-tl-lg" style={{ width: '30%' }}>Jina la Dawa / Tiba</th>
+                <th className="text-left py-3 px-4 font-semibold text-sm" style={{ width: '20%' }}>Dosi (Kiasi)</th>
+                <th className="text-left py-3 px-4 font-semibold text-sm" style={{ width: '45%' }}>Maelekezo</th>
+                <th className="py-3 px-4 no-print rounded-tr-lg" style={{ width: '5%' }}></th>
+              </tr>
             </thead>
-            <tbody id="med-list">
-                <!-- Rows will be inserted here by JavaScript -->
+            <tbody className="divide-y divide-slate-100">
+              {data.medications.map((row) => (
+                <tr key={row.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="py-3 px-4 align-top relative">
+                    <input 
+                      type="text"
+                      className="w-full bg-transparent outline-none focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 font-medium border border-transparent hover:border-slate-200"
+                      placeholder="Herb/Medicine"
+                      value={row.name}
+                      onChange={e => updateRow(row.id, 'name', e.target.value)}
+                    />
+                    <button 
+                      onClick={() => handleAIInsight(row.id, row.name)}
+                      disabled={!row.name || isLoadingAI === row.id}
+                      className="no-print absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-50 text-amber-700 p-1.5 rounded-full hover:bg-amber-100 disabled:opacity-0"
+                      title="AI Insight"
+                    >
+                      {isLoadingAI === row.id ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    </button>
+                  </td>
+                  <td className="py-3 px-4 align-top">
+                    <input 
+                      type="text"
+                      className="w-full bg-transparent outline-none focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 border border-transparent hover:border-slate-200"
+                      placeholder="1x3"
+                      value={row.dosage}
+                      onChange={e => updateRow(row.id, 'dosage', e.target.value)}
+                    />
+                  </td>
+                  <td className="py-3 px-4 align-top">
+                    <AutoExpandingTextarea 
+                      value={row.instructions}
+                      onChange={val => updateRow(row.id, 'instructions', val)}
+                      placeholder="Maelekezo..."
+                    />
+                  </td>
+                  <td className="py-3 px-4 align-top text-center no-print">
+                    <button 
+                      onClick={() => deleteRow(row.id)}
+                      className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
-        </table>
-
-        <!-- Doctor's Notes -->
-        <div class="notes-section">
-            <div class="notes-title">MAELEKEZO YA DOKTARI / USHAURI WA LISHE:</div>
-            <textarea id="doctor-notes" class="notes-area" placeholder="Andika hapa maelekezo maalum..."></textarea>
+          </table>
+          
+          {/* Add Row Button at end of table */}
+          <button 
+            onClick={addRow} 
+            className="no-print mt-4 flex items-center gap-2 text-green-700 hover:text-green-800 font-medium text-sm transition-colors mx-auto"
+          >
+            <Plus size={14} className="bg-green-100 rounded-full p-0.5" /> Ongeza mstari wa dawa
+          </button>
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <div class="signature-box">
-                <div class="sign-line"></div>
-                <strong>Sahihi ya Daktari</strong>
-            </div>
-            <div class="signature-box">
-                <div class="sign-line"></div>
-                <strong>Muhuri wa Clinic</strong>
-            </div>
+        {/* Doctor's Notes Section */}
+        <div className="border-2 border-green-700/20 bg-green-50/20 rounded-2xl p-6 mb-12">
+          <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2 uppercase tracking-wide text-sm">
+            <Leaf size={16} /> Maelekezo ya Ziada & Ushauri wa Lishe
+          </h3>
+          <AutoExpandingTextarea 
+            value={data.doctorNotes}
+            onChange={val => setData(prev => ({ ...prev, doctorNotes: val }))}
+            placeholder="Andika maelekezo ya chakula au ushauri wowote hapa..."
+            className="text-slate-700 text-sm leading-relaxed min-h-[100px]"
+          />
         </div>
 
-        <div class="footer-note">
-            "Afya yako ndio furaha yetu. Tumia dawa kama ulivyoelekezwa."<br>
-            Karibu tena Dr. William Herbal Clinic.
+        {/* Footer & Signatures */}
+        <div className="grid grid-cols-2 gap-10 mt-16 px-6">
+          <div className="text-center space-y-2">
+            <div className="border-b-2 border-slate-800 h-16 w-full mb-2"></div>
+            <p className="font-bold text-slate-800 text-sm">Sahihi ya Daktari</p>
+          </div>
+          <div className="text-center space-y-2">
+            <div className="border-b-2 border-slate-800 h-16 w-full mb-2"></div>
+            <p className="font-bold text-slate-800 text-sm">Muhuri wa Clinic</p>
+          </div>
         </div>
+
+        {/* Final Disclaimer */}
+        <div className="mt-20 pt-6 border-t border-slate-100 text-center">
+          <p className="font-playfair italic text-slate-500 text-sm mb-1">
+            "Afya yako ndio furaha yetu. Tumia dawa kama ulivyoelekezwa."
+          </p>
+          <p className="text-green-800 text-[10px] font-bold tracking-[0.2em] uppercase">
+            Karibu tena Dr. William Herbal Clinic
+          </p>
+        </div>
+      </main>
     </div>
+  );
+};
 
-<script>
-    (function() {
-        // ---------- AUTO-SAVE & LOAD ----------
-        const STORAGE_KEY = 'drwilliam_prescription';
+// Helper component for auto-expanding textarea
+interface AutoExpandingTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}
 
-        // DOM elements
-        const medList = document.getElementById('med-list');
-        const patientName = document.getElementById('patient-name');
-        const patientAddress = document.getElementById('patient-address');
-        const datePicker = document.getElementById('date-picker');
-        const patientAge = document.getElementById('patient-age');
-        const doctorNotes = document.getElementById('doctor-notes');
-        const toast = document.getElementById('save-toast');
+const AutoExpandingTextarea: React.FC<AutoExpandingTextareaProps> = ({ value, onChange, placeholder, className = "" }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-        // Set today's date
-        datePicker.valueAsDate = new Date();
+  const adjustHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, []);
 
-        // Save to localStorage
-        function saveToStorage() {
-            const data = {
-                patientName: patientName.value,
-                patientAddress: patientAddress.value,
-                date: datePicker.value,
-                patientAge: patientAge.value,
-                notes: doctorNotes.value,
-                rows: []
-            };
-            document.querySelectorAll('#med-list tr').forEach(row => {
-                const medicine = row.querySelector('.med-input')?.value || '';
-                const dosage = row.querySelectorAll('.med-input')[1]?.value || '';
-                const instruction = row.querySelector('.med-textarea')?.value || '';
-                data.rows.push({
-                    medicine: medicine,
-                    dosage: dosage,
-                    instruction: instruction
-                });
-            });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            // Show toast
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 1500);
-        }
+  useEffect(() => {
+    adjustHeight();
+  }, [value, adjustHeight]);
 
-        // Load from localStorage
-        function loadFromStorage() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) return false;
-            try {
-                const data = JSON.parse(saved);
-                patientName.value = data.patientName || '';
-                patientAddress.value = data.patientAddress || '';
-                datePicker.value = data.date || new Date().toISOString().slice(0,10);
-                patientAge.value = data.patientAge || '';
-                doctorNotes.value = data.notes || '';
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => {
+        onChange(e.target.value);
+        adjustHeight();
+      }}
+      placeholder={placeholder}
+      className={`w-full bg-transparent outline-none border border-transparent hover:border-slate-200 focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 transition-all auto-expand-textarea ${className}`}
+      rows={1}
+    />
+  );
+};
 
-                // Clear existing rows
-                medList.innerHTML = '';
-                if (data.rows && data.rows.length > 0) {
-                    data.rows.forEach(r => {
-                        addRow(r.medicine, r.dosage, r.instruction);
-                    });
-                } else {
-                    // Default two empty rows
-                    addRow();
-                    addRow();
-                }
-                return true;
-            } catch (e) {
-                console.warn('Failed to load saved data', e);
-                return false;
-            }
-        }
-
-        // Add row (with optional prefill)
-        window.addRow = function(med = '', dose = '', instr = '') {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="text" class="med-input" value="${escapeHtml(med)}" placeholder="Jina la dawa"></td>
-                <td><input type="text" class="med-input" value="${escapeHtml(dose)}" placeholder="Mf: 1x3"></td>
-                <td><textarea class="med-textarea" rows="2" placeholder="Asubuhi, Mchana, Jioni">${escapeHtml(instr)}</textarea></td>
-                <td><i class="fas fa-times delete-btn" onclick="deleteRow(this)"></i></td>
-            `;
-            medList.appendChild(tr);
-            attachInputListeners(tr);
-        };
-
-        // Simple escape for innerHTML
-        function escapeHtml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe.replace(/[&<>"]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                if (m === '"') return '&quot;';
-                return m;
-            });
-        }
-
-        // Attach input listeners to a row to trigger save
-        function attachInputListeners(row) {
-            row.querySelectorAll('.med-input, .med-textarea').forEach(inp => {
-                inp.addEventListener('input', saveToStorage);
-            });
-        }
-
-        // Delete row (with confirmation)
-        window.deleteRow = function(icon) {
-            const row = icon.closest('tr');
-            if (!row) return;
-            if (document.querySelectorAll('#med-list tr').length <= 1) {
-                alert('Huwezi kufuta safu ya mwisho. Ongeza safu mpya kwanza.');
-                return;
-            }
-            if (confirm('Una uhakika unataka kufuta dawa hii?')) {
-                row.remove();
-                saveToStorage();
-            }
-        };
-
-        // Clear all fields
-        window.clearAll = function() {
-            if (confirm('Safisha taarifa zote?')) {
-                patientName.value = '';
-                patientAddress.value = '';
-                datePicker.valueAsDate = new Date();
-                patientAge.value = '';
-                doctorNotes.value = '';
-                medList.innerHTML = '';
-                addRow(); addRow(); // two empty rows
-                saveToStorage();
-            }
-        };
-
-        // Load sample data for demonstration
-        window.loadSample = function() {
-            patientName.value = 'Hamisi Juma';
-            patientAddress.value = 'Kitunda, Dar es Salaam';
-            patientAge.value = '45 / M';
-            doctorNotes.value = 'Epuka vyakula vya mafuta, kunywa maji mengi, tembea kila asubuhi.';
-            medList.innerHTML = '';
-            addRow('Moringa Powder', '1x2', 'Asubuhi na jioni kabla ya chakula');
-            addRow('Aloe Vera Juice', '100ml x1', 'Asubuhi kabla ya chakula');
-            addRow('Ginger & Garlic Capsule', '1x3', 'Baada ya chakula');
-            saveToStorage();
-        };
-
-        // Save PDF using jspdf + html2canvas
-        window.saveAsPDF = function() {
-            const element = document.getElementById('prescription-paper');
-            // Hide delete buttons temporarily
-            const deleteBtns = document.querySelectorAll('.delete-btn');
-            deleteBtns.forEach(btn => btn.style.display = 'none');
-
-            html2canvas(element, {
-                scale: 2,
-                backgroundColor: '#ffffff',
-                logging: false
-            }).then(canvas => {
-                // Restore buttons
-                deleteBtns.forEach(btn => btn.style.display = '');
-
-                const imgData = canvas.toDataURL('image/png');
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-                const canvasWidth = canvas.width;
-                const canvasHeight = canvas.height;
-                const ratio = Math.min(pdfWidth / canvasWidth, pdfHeight / canvasHeight);
-                const imgWidth = canvasWidth * ratio;
-                const imgHeight = canvasHeight * ratio;
-                const x = (pdfWidth - imgWidth) / 2;
-                const y = 10; // small top margin
-
-                pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-                pdf.save('Prescription_' + Date.now() + '.pdf');
-            }).catch(err => {
-                console.error(err);
-                alert('Hitilafu katika kutengeneza PDF.');
-                deleteBtns.forEach(btn => btn.style.display = '');
-            });
-        };
-
-        // Download as image (JPG)
-        window.downloadImage = async function() {
-            const element = document.getElementById('prescription-paper');
-            const deleteBtns = document.querySelectorAll('.delete-btn');
-            deleteBtns.forEach(btn => btn.style.display = 'none');
-
-            try {
-                const canvas = await html2canvas(element, {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor: '#ffffff'
-                });
-                deleteBtns.forEach(btn => btn.style.display = '');
-
-                const link = document.createElement('a');
-                link.download = 'Prescription_' + Date.now() + '.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.95);
-                link.click();
-            } catch (err) {
-                alert('Hitilafu katika kupiga picha.');
-                deleteBtns.forEach(btn => btn.style.display = '');
-            }
-        };
-
-        // Attach save listeners to all input fields
-        function attachAllInputListeners() {
-            [patientName, patientAddress, datePicker, patientAge, doctorNotes].forEach(field => {
-                field.addEventListener('input', saveToStorage);
-            });
-            // For dynamic rows, attach when created
-        }
-
-        // Initialize
-        function init() {
-            // Load saved data or create default two rows
-            if (!loadFromStorage()) {
-                addRow();
-                addRow();
-            }
-            attachAllInputListeners();
-            // Also attach to existing rows
-            document.querySelectorAll('#med-list tr').forEach(row => attachInputListeners(row));
-        }
-
-        init();
-    })();
-</script>
-</body>
-</html>
+export default App;
