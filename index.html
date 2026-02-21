@@ -1,21 +1,67 @@
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #prescription-paper, #prescription-paper * {
-    visibility: visible;
-  }
-  #prescription-paper {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
-    box-shadow: none;
-    background: white;
-  }
-  .no-print {
-    display: none !important;
+
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. William Herbal - Prescription</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Cinzel:wght@700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f0f4f0;
+        }
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; margin: 0; }
+            #prescription-paper {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 1cm !important;
+            }
+            .auto-expand-textarea {
+                height: auto !important;
+                overflow: visible !important;
+                border: none !important;
+            }
+        }
+        
+        .auto-expand-textarea {
+            resize: none;
+            overflow: hidden;
+            min-height: 2.5rem;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #2e7d32; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #1b5e20; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.575.0",
+    "jspdf": "https://esm.sh/jspdf@^4.2.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
   }
 }
+</script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
