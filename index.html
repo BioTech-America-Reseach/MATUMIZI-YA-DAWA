@@ -4,424 +4,213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dr. William Herbal · Prescription</title>
-    <!-- Tailwind & Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Cinzel:wght@700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <!-- Font Awesome 6 (free) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- React, ReactDOM (UMD) -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
-    <!-- html2canvas & jspdf -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #f0f4f0;
-        }
+        body { font-family: 'Poppins', sans-serif; background: #f0f4f0; }
         .font-cinzel { font-family: 'Cinzel', serif; }
-        .font-playfair { font-family: 'Playfair Display', serif; }
         
-        @media print {
-            .no-print { display: none !important; }
-            body, html {
-                background: white;
-                padding: 0;
-                margin: 0;
-                height: auto !important;
-                overflow: visible !important;
-            }
-            #prescription-paper {
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                margin: 0 auto !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 1.5cm !important;
-                overflow: visible !important;
-                height: auto !important;
-                page-break-after: avoid;
-                page-break-inside: auto;
-            }
-            .med-table {
-                page-break-inside: auto;
-            }
-            .med-table tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-            }
-            .med-table thead {
-                display: table-header-group;
-            }
-            .med-table tbody {
-                page-break-inside: auto;
-            }
-            .patient-info, .rx-symbol, .notes-section, .footer, .footer-note {
-                page-break-inside: avoid;
-            }
-            .auto-expand-textarea {
-                height: auto !important;
-                overflow: visible !important;
-                border: none !important;
-                background: transparent !important;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                min-height: auto !important;
-                max-height: none !important;
-            }
-            @page {
-                margin: 1.5cm;
-                size: A4;
-            }
-        }
-        
-        .auto-expand-textarea {
+        /* Auto-expand Logic */
+        .expanding-textarea {
             resize: none;
             overflow: hidden;
-            min-height: 2.5rem;
+            min-height: 1.5rem;
+            display: block;
+            width: 100%;
         }
 
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #2e7d32; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #1b5e20; }
+        /* PRINT STYLES - Hapa ndipo uchawi wa kuonekana maandishi yote ulipo */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            #prescription-paper {
+                box-shadow: none !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 1cm !important;
+                height: auto !important;
+            }
+            .expanding-textarea {
+                border: none !important;
+                overflow: visible !important;
+                height: auto !important;
+                white-space: pre-wrap !important; /* Inaruhusu mistari mipya */
+                word-wrap: break-word !important;
+            }
+            .med-table th { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+            @page { size: A4; margin: 1cm; }
+        }
+
+        #prescription-paper {
+            background: white;
+            min-height: 297mm; /* A4 height */
+            width: 210mm;      /* A4 width */
+            margin: 20px auto;
+            padding: 40px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script>
-        (function() {
-            // React and ReactDOM are now global
-            const React = window.React;
-            const ReactDOM = window.ReactDOM;
+        const { useState, useEffect, useRef, useCallback } = React;
 
-            // Mock AI Service
-            const getHerbalInsight = async (herbName) => {
-                await new Promise(resolve => setTimeout(resolve, 800));
-                const insights = {
-                    'moringa': 'Moringa ina virutubishi vingi. Inasaidia kuongeza nguvu na kupunguza uchovu. Tumia kwa usahihi.',
-                    'aloe vera': 'Aloe vera husaidia kusafisha tumbo na kuimarisha kinga ya mwili. Inafaa kwa matatizo ya ngozi.',
-                    'ginger': 'Tangawizi inasaidia kupunguza kichefuchefu na maumivu ya viungo. Inaweza kutumwa kwa chai.',
-                    'garlic': 'Kitunguu saumu kinasaidia kupunguza shinikizo la damu na kuimarisha moyo.'
-                };
-                const key = herbName.toLowerCase().split(' ')[0];
-                return insights[key] || `${herbName} – tiba asili inayojulikana kwa faida zake kiafya. Tumia kwa ushauri wa daktari.`;
+        // Component ya Textarea inayojitanua yenyewe
+        const AutoTextarea = ({ value, onChange, placeholder, className = "" }) => {
+            const areaRef = useRef(null);
+
+            const adjustHeight = () => {
+                const element = areaRef.current;
+                if (element) {
+                    element.style.height = "auto"; // Reset height
+                    element.style.height = element.scrollHeight + "px"; // Set to content height
+                }
             };
 
-            const STORAGE_KEY = 'dr_william_herbal_v1';
+            useEffect(() => {
+                adjustHeight();
+            }, [value]);
 
-            // Auto-expanding Textarea component
-            const AutoExpandingTextarea = ({ value, onChange, placeholder, className = '' }) => {
-                const textareaRef = React.useRef(null);
-                const adjustHeight = React.useCallback(() => {
-                    const textarea = textareaRef.current;
-                    if (textarea) {
-                        textarea.style.height = 'auto';
-                        textarea.style.height = textarea.scrollHeight + 'px';
-                    }
-                }, []);
-                React.useEffect(() => {
+            return React.createElement('textarea', {
+                ref: areaRef,
+                value: value,
+                placeholder: placeholder,
+                onChange: (e) => {
+                    onChange(e.target.value);
                     adjustHeight();
-                }, [value, adjustHeight]);
-                return React.createElement('textarea', {
-                    ref: textareaRef,
-                    value: value,
-                    onChange: (e) => { onChange(e.target.value); adjustHeight(); },
-                    placeholder: placeholder,
-                    className: `w-full bg-transparent outline-none border border-transparent hover:border-slate-200 focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 transition-all resize-none overflow-hidden auto-expand-textarea ${className}`,
-                    rows: 1
-                });
+                },
+                className: `expanding-textarea focus:ring-0 outline-none transition-all ${className}`,
+                rows: 1
+            });
+        };
+
+        const App = () => {
+            const [data, setData] = useState({
+                patientName: '',
+                ageGender: '',
+                date: new Date().toISOString().split('T')[0],
+                address: '',
+                meds: [{ id: 1, name: '', dose: '', info: '' }],
+                notes: ''
+            });
+
+            const updateMed = (id, field, val) => {
+                const newMeds = data.meds.map(m => m.id === id ? { ...m, [field]: val } : m);
+                setData({ ...data, meds: newMeds });
             };
 
-            // Main App component
-            const App = () => {
-                const [data, setData] = React.useState({
-                    patientName: '',
-                    patientAddress: '',
-                    date: new Date().toISOString().split('T')[0],
-                    patientAgeGender: '',
-                    medications: [
-                        { id: '1', name: '', dosage: '', instructions: '' },
-                        { id: '2', name: '', dosage: '', instructions: '' }
-                    ],
-                    doctorNotes: ''
-                });
-                const [isLoadingAI, setIsLoadingAI] = React.useState(null);
-                const [showToast, setShowToast] = React.useState(false);
-                const paperRef = React.useRef(null);
+            const addRow = () => setData({ ...data, meds: [...data.meds, { id: Date.now(), name: '', dose: '', info: '' }] });
 
-                // Load from localStorage
-                React.useEffect(() => {
-                    const saved = localStorage.getItem(STORAGE_KEY);
-                    if (saved) {
-                        try {
-                            const parsed = JSON.parse(saved);
-                            const medsWithIds = parsed.medications.map((med, index) => ({
-                                ...med,
-                                id: med.id || Math.random().toString(36).substr(2, 9)
-                            }));
-                            setData({ ...parsed, medications: medsWithIds });
-                        } catch (e) {
-                            console.error("Failed to parse saved data", e);
-                        }
-                    }
-                }, []);
+            return React.createElement('div', { className: "min-h-screen py-8" },
+                // Print Button
+                React.createElement('div', { className: "flex justify-center mb-6 no-print gap-4" },
+                    React.createElement('button', { 
+                        onClick: () => window.print(),
+                        className: "bg-green-700 text-white px-6 py-2 rounded-full hover:bg-green-800 transition-all flex items-center gap-2 shadow-lg"
+                    }, React.createElement('i', { className: "fas fa-print" }), "Print Prescription")
+                ),
 
-                // Auto-save
-                React.useEffect(() => {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                    setShowToast(true);
-                    const timer = setTimeout(() => setShowToast(false), 2000);
-                    return () => clearTimeout(timer);
-                }, [data]);
-
-                const addRow = () => {
-                    const newRow = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        name: '',
-                        dosage: '',
-                        instructions: ''
-                    };
-                    setData(prev => ({ ...prev, medications: [...prev.medications, newRow] }));
-                };
-
-                const deleteRow = (id) => {
-                    if (data.medications.length <= 1) return;
-                    setData(prev => ({
-                        ...prev,
-                        medications: prev.medications.filter(row => row.id !== id)
-                    }));
-                };
-
-                const updateRow = (id, field, value) => {
-                    setData(prev => ({
-                        ...prev,
-                        medications: prev.medications.map(row => 
-                            row.id === id ? { ...row, [field]: value } : row
+                // Karatasi ya Prescription
+                React.createElement('div', { id: "prescription-paper" },
+                    // Header
+                    React.createElement('div', { className: "text-center border-b-2 border-green-800 pb-4 mb-6" },
+                        React.createElement('h1', { className: "font-cinzel text-3xl text-green-900 font-bold" }, "DR. WILLIAM HERBAL CLINIC"),
+                        React.createElement('p', { className: "text-xs italic text-slate-600" }, "Tiba Asili na Ushauri wa Kiafya · Dar es Salaam, Tanzania"),
+                        React.createElement('div', { className: "flex justify-center gap-6 mt-2 text-[10px] font-semibold text-slate-700" },
+                            React.createElement('span', null, React.createElement('i', { className: "fas fa-phone mr-1" }), "+255 7XX XXX XXX"),
+                            React.createElement('span', null, React.createElement('i', { className: "fas fa-envelope mr-1" }), "info@drwilliamherbal.com")
                         )
-                    }));
-                };
-
-                const handleAIInsight = async (id, herbName) => {
-                    if (!herbName.trim()) return;
-                    setIsLoadingAI(id);
-                    const insight = await getHerbalInsight(herbName);
-                    updateRow(id, 'instructions', insight);
-                    setIsLoadingAI(null);
-                };
-
-                const clearAll = () => {
-                    if (window.confirm('Je, una uhakika unataka kufuta taarifa zote?')) {
-                        setData({
-                            patientName: '',
-                            patientAddress: '',
-                            date: new Date().toISOString().split('T')[0],
-                            patientAgeGender: '',
-                            medications: [
-                                { id: '1', name: '', dosage: '', instructions: '' },
-                                { id: '2', name: '', dosage: '', instructions: '' }
-                            ],
-                            doctorNotes: ''
-                        });
-                        localStorage.removeItem(STORAGE_KEY);
-                    }
-                };
-
-                const loadSample = () => {
-                    setData({
-                        patientName: 'Hamisi Juma',
-                        patientAddress: 'Kitunda, Dar es Salaam',
-                        date: new Date().toISOString().split('T')[0],
-                        patientAgeGender: '45 / ME',
-                        medications: [
-                            { id: '1', name: 'Moringa Powder', dosage: 'Kijiko 1 x 2', instructions: 'Changanya na maji moto au asali, tumia asubuhi na jioni kabla ya chakula.' },
-                            { id: '2', name: 'Aloe Vera Juice', dosage: '50ml x 1', instructions: 'Kunywa asubuhi kabla ya kula chochote kwa ajili ya kusafisha mfumo wa mmeng\'enyo.' },
-                            { id: '3', name: 'Ginger & Garlic Capsule', dosage: '1 x 3', instructions: 'Tumia baada ya kula chakula (Asubuhi, Mchana na Jioni).' }
-                        ],
-                        doctorNotes: 'Epuka vyakula vyenye sukari nyingi na mafuta. Kunywa maji lita 3 kwa siku. Fanya mazoezi ya kutembea kwa dakika 30 kila siku.'
-                    });
-                };
-
-                const exportPDF = async () => {
-                    if (!paperRef.current) return;
-                    try {
-                        const canvas = await html2canvas(paperRef.current, { scale: 2 });
-                        const imgData = canvas.toDataURL('image/png');
-                        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                        const width = pdf.internal.pageSize.getWidth();
-                        const height = (canvas.height * width) / canvas.width;
-                        pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-                        pdf.save(`Prescription_${data.patientName || 'Mgonjwa'}_${data.date}.pdf`);
-                    } catch (error) {
-                        console.error('PDF export failed', error);
-                        alert('Hitilafu wakati wa kuunda PDF.');
-                    }
-                };
-
-                const exportImage = async () => {
-                    if (!paperRef.current) return;
-                    try {
-                        const canvas = await html2canvas(paperRef.current, { scale: 2 });
-                        const link = document.createElement('a');
-                        link.download = `Prescription_${data.patientName || 'Mgonjwa'}.png`;
-                        link.href = canvas.toDataURL('image/png');
-                        link.click();
-                    } catch (error) {
-                        console.error('Image export failed', error);
-                        alert('Hitilafu wakati wa kupiga picha.');
-                    }
-                };
-
-                // Helper to create icon elements using Font Awesome classes
-                const Icon = ({ name, className = "" }) => React.createElement('i', { className: `fas fa-${name} ${className}` });
-
-                // Render with React.createElement
-                return React.createElement('div', { className: "min-h-screen pb-20 px-4 md:px-0 bg-gradient-to-br from-green-50 to-amber-50" },
-                    // Toast
-                    React.createElement('div', { className: `fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-800 text-white px-6 py-2 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center gap-2 pointer-events-none ${showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}` },
-                        React.createElement(Icon, { name: "save", size: 16 }),
-                        React.createElement('span', null, "Imesajiliwa")
                     ),
-                    // Control Panel
-                    React.createElement('header', { className: "sticky top-0 bg-white/80 backdrop-blur-md border-b border-green-100 z-40 py-4 shadow-sm mb-8" },
-                        React.createElement('div', { className: "max-w-4xl mx-auto flex flex-wrap justify-center gap-3 px-4" },
-                            React.createElement('button', { onClick: addRow, className: "flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95" },
-                                React.createElement(Icon, { name: "plus" }), " Ongeza Dawa"
+
+                    // Patient Info Section
+                    React.createElement('div', { className: "grid grid-cols-2 gap-4 mb-8 text-sm" },
+                        React.createElement('div', { className: "space-y-2" },
+                            React.createElement('div', { className: "flex border-b border-dotted border-slate-300" },
+                                React.createElement('span', { className: "font-bold w-20" }, "Name:"),
+                                React.createElement(AutoTextarea, { value: data.patientName, onChange: (v) => setData({...data, patientName: v}), placeholder: "Jina la Mgonjwa", className: "font-medium" })
                             ),
-                            React.createElement('button', { onClick: exportPDF, className: "flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95" },
-                                React.createElement(Icon, { name: "file-pdf" }), " PDF"
+                            React.createElement('div', { className: "flex border-b border-dotted border-slate-300" },
+                                React.createElement('span', { className: "font-bold w-20" }, "Address:"),
+                                React.createElement(AutoTextarea, { value: data.address, onChange: (v) => setData({...data, address: v}), placeholder: "Mahali anapoishi" })
+                            )
+                        ),
+                        React.createElement('div', { className: "space-y-2" },
+                            React.createElement('div', { className: "flex border-b border-dotted border-slate-300" },
+                                React.createElement('span', { className: "font-bold w-20" }, "Date:"),
+                                React.createElement('input', { type: "date", value: data.date, onChange: (e) => setData({...data, date: e.target.value}), className: "w-full outline-none bg-transparent" })
                             ),
-                            React.createElement('button', { onClick: exportImage, className: "flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95" },
-                                React.createElement(Icon, { name: "camera" }), " Picha"
-                            ),
-                            React.createElement('button', { onClick: () => window.print(), className: "flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95" },
-                                React.createElement(Icon, { name: "print" }), " Chapisha"
-                            ),
-                            React.createElement('button', { onClick: loadSample, className: "flex items-center gap-2 border-2 border-green-700 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg font-medium transition-all" },
-                                "Sampuli"
-                            ),
-                            React.createElement('button', { onClick: clearAll, className: "flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg font-medium transition-all" },
-                                React.createElement(Icon, { name: "undo-alt" }), " Safisha"
+                            React.createElement('div', { className: "flex border-b border-dotted border-slate-300" },
+                                React.createElement('span', { className: "font-bold w-20" }, "Age/Sex:"),
+                                React.createElement(AutoTextarea, { value: data.ageGender, onChange: (v) => setData({...data, ageGender: v}), placeholder: "Miaka / Jinsia" })
                             )
                         )
                     ),
-                    // Prescription Paper
-                    React.createElement('main', { ref: paperRef, id: "prescription-paper", className: "max-w-[210mm] mx-auto bg-white shadow-2xl rounded-xl p-10 md:p-14 border border-green-50 relative overflow-hidden" },
-                        // Background elements
-                        React.createElement('div', { className: "absolute top-0 right-0 w-64 h-64 bg-green-50 rounded-full blur-3xl opacity-20 -mr-32 -mt-32" }),
-                        React.createElement('div', { className: "absolute bottom-0 left-0 w-96 h-96 bg-amber-50 rounded-full blur-3xl opacity-20 -ml-48 -mb-48" }),
-                        // Header
-                        React.createElement('div', { className: "relative z-10 text-center border-b-4 border-double border-green-700 pb-8 mb-10" },
-                            React.createElement('div', { className: "flex justify-center mb-4" },
-                                React.createElement('div', { className: "w-20 h-20 bg-green-700 rounded-full flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform cursor-pointer" },
-                                    React.createElement(Icon, { name: "leaf", className: "text-white text-3xl" })
-                                )
-                            ),
-                            React.createElement('h1', { className: "font-cinzel text-3xl md:text-4xl text-green-900 tracking-widest mb-2" }, "DR. WILLIAM HERBAL CLINIC"),
-                            React.createElement('p', { className: "text-amber-700 font-medium tracking-widest text-sm mb-4 uppercase" }, "Tiba Asili na Ushauri wa Lishe"),
-                            React.createElement('div', { className: "flex flex-wrap justify-center gap-x-8 gap-y-2 text-slate-600 text-sm" },
-                                React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "map-pin", className: "text-green-700" }), " P.O. Box 10780, Kitunda, DSM"),
-                                React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "phone", className: "text-green-700" }), " +255 762 286 282"),
-                                React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "envelope", className: "text-green-700" }), " info@drwilliam.com")
+
+                    // Rx Symbol
+                    React.createElement('div', { className: "text-4xl font-playfair italic mb-4 text-green-900" }, "Rx"),
+
+                    // Medication Table
+                    React.createElement('table', { className: "w-full text-left border-collapse mb-8 text-sm med-table" },
+                        React.createElement('thead', null,
+                            React.createElement('tr', { className: "bg-slate-50 border-y-2 border-green-800" },
+                                React.createElement('th', { className: "py-2 px-3 w-1/3" }, "Jina la Dawa"),
+                                React.createElement('th', { className: "py-2 px-3 w-1/4" }, "Kipimo (Dosage)"),
+                                React.createElement('th', { className: "py-2 px-3" }, "Maelekezo (Instructions)")
                             )
                         ),
-                        // Patient details
-                        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6 bg-green-50/50 p-6 rounded-2xl border border-green-100 mb-8" },
-                            React.createElement('div', { className: "space-y-4" },
-                                React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('label', { className: "font-semibold text-slate-700 w-20 shrink-0" }, "Jina:"),
-                                    React.createElement('input', { type: "text", placeholder: "Ingiza jina la mgonjwa", className: "bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 placeholder:italic transition-colors", value: data.patientName, onChange: e => setData(prev => ({ ...prev, patientName: e.target.value })) })
-                                ),
-                                React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('label', { className: "font-semibold text-slate-700 w-20 shrink-0" }, "Anwani:"),
-                                    React.createElement('input', { type: "text", placeholder: "Mahali anapoishi", className: "bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 transition-colors", value: data.patientAddress, onChange: e => setData(prev => ({ ...prev, patientAddress: e.target.value })) })
-                                )
-                            ),
-                            React.createElement('div', { className: "space-y-4" },
-                                React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('label', { className: "font-semibold text-slate-700 w-24 shrink-0 text-right md:text-left" }, "Tarehe:"),
-                                    React.createElement('input', { type: "date", className: "bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 transition-colors", value: data.date, onChange: e => setData(prev => ({ ...prev, date: e.target.value })) })
-                                ),
-                                React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('label', { className: "font-semibold text-slate-700 w-24 shrink-0 text-right md:text-left" }, "Umri/Jinsia:"),
-                                    React.createElement('input', { type: "text", placeholder: "Mf: 35 / KE", className: "bg-transparent border-b border-slate-300 focus:border-green-600 outline-none w-full py-1 text-slate-800 placeholder:text-slate-400 transition-colors", value: data.patientAgeGender, onChange: e => setData(prev => ({ ...prev, patientAgeGender: e.target.value })) })
+                        React.createElement('tbody', null,
+                            data.meds.map(med => 
+                                React.createElement('tr', { key: med.id, className: "border-b border-slate-100" },
+                                    React.createElement('td', { className: "p-1" }, React.createElement(AutoTextarea, { value: med.name, onChange: (v) => updateMed(med.id, 'name', v), placeholder: "Dawa...", className: "font-semibold" })),
+                                    React.createElement('td', { className: "p-1" }, React.createElement(AutoTextarea, { value: med.dose, onChange: (v) => updateMed(med.id, 'dose', v), placeholder: "Mf: 2x3" })),
+                                    React.createElement('td', { className: "p-1" }, React.createElement(AutoTextarea, { value: med.info, onChange: (v) => updateMed(med.id, 'info', v), placeholder: "Maelekezo ya ziada..." }))
                                 )
                             )
-                        ),
-                        // Rx symbol
-                        React.createElement('div', { className: "font-cinzel text-5xl text-amber-600 mb-4 ml-2 select-none" }, "Rx"),
-                        // Medication table
-                        React.createElement('div', { className: "overflow-visible mb-10" },
-                            React.createElement('table', { className: "w-full border-collapse med-table" },
-                                React.createElement('thead', null,
-                                    React.createElement('tr', { className: "bg-green-700 text-white rounded-t-lg" },
-                                        React.createElement('th', { className: "text-left py-3 px-4 font-semibold text-sm rounded-tl-lg", style: { width: '30%' } }, "Jina la Dawa / Tiba"),
-                                        React.createElement('th', { className: "text-left py-3 px-4 font-semibold text-sm", style: { width: '20%' } }, "Dosi (Kiasi)"),
-                                        React.createElement('th', { className: "text-left py-3 px-4 font-semibold text-sm", style: { width: '45%' } }, "Maelekezo"),
-                                        React.createElement('th', { className: "py-3 px-4 no-print rounded-tr-lg", style: { width: '5%' } })
-                                    )
-                                ),
-                                React.createElement('tbody', { className: "divide-y divide-slate-100" },
-                                    data.medications.map(row => 
-                                        React.createElement('tr', { key: row.id, className: "group hover:bg-slate-50/50 transition-colors" },
-                                            React.createElement('td', { className: "py-3 px-4 align-top relative" },
-                                                React.createElement('input', { type: "text", className: "w-full bg-transparent outline-none focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 font-medium border border-transparent hover:border-slate-200", placeholder: "Herb/Medicine", value: row.name, onChange: e => updateRow(row.id, 'name', e.target.value) }),
-                                                React.createElement('button', { onClick: () => handleAIInsight(row.id, row.name), disabled: !row.name || isLoadingAI === row.id, className: "no-print absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-50 text-amber-700 p-1.5 rounded-full hover:bg-amber-100 disabled:opacity-0", title: "AI Insight" },
-                                                    isLoadingAI === row.id ? React.createElement(Icon, { name: "spinner", className: "fa-spin" }) : React.createElement(Icon, { name: "sparkles" })
-                                                )
-                                            ),
-                                            React.createElement('td', { className: "py-3 px-4 align-top" },
-                                                React.createElement('input', { type: "text", className: "w-full bg-transparent outline-none focus:ring-1 focus:ring-green-200 rounded px-2 py-1 text-slate-800 border border-transparent hover:border-slate-200", placeholder: "1x3", value: row.dosage, onChange: e => updateRow(row.id, 'dosage', e.target.value) })
-                                            ),
-                                            React.createElement('td', { className: "py-3 px-4 align-top" },
-                                                React.createElement(AutoExpandingTextarea, { value: row.instructions, onChange: val => updateRow(row.id, 'instructions', val), placeholder: "Maelekezo..." })
-                                            ),
-                                            React.createElement('td', { className: "py-3 px-4 align-top text-center no-print" },
-                                                React.createElement('button', { onClick: () => deleteRow(row.id), className: "text-slate-300 hover:text-red-500 transition-colors p-1" },
-                                                    React.createElement(Icon, { name: "trash-alt" })
-                                                )
-                                            )
-                                        )
-                                    )
-                                )
-                            ),
-                            React.createElement('button', { onClick: addRow, className: "no-print mt-4 flex items-center gap-2 text-green-700 hover:text-green-800 font-medium text-sm transition-colors mx-auto" },
-                                React.createElement(Icon, { name: "plus-circle" }), " Ongeza mstari wa dawa"
-                            )
-                        ),
-                        // Doctor's notes
-                        React.createElement('div', { className: "border-2 border-green-700/20 bg-green-50/20 rounded-2xl p-6 mb-12" },
-                            React.createElement('h3', { className: "font-bold text-green-800 mb-3 flex items-center gap-2 uppercase tracking-wide text-sm" },
-                                React.createElement(Icon, { name: "leaf" }), " Maelekezo ya Ziada & Ushauri wa Lishe"
-                            ),
-                            React.createElement(AutoExpandingTextarea, { value: data.doctorNotes, onChange: val => setData(prev => ({ ...prev, doctorNotes: val })), placeholder: "Andika maelekezo ya chakula au ushauri wowote hapa...", className: "text-slate-700 text-sm leading-relaxed min-h-[100px]" })
-                        ),
-                        // Footer & signatures
-                        React.createElement('div', { className: "grid grid-cols-2 gap-10 mt-16 px-6" },
-                            React.createElement('div', { className: "text-center space-y-2" },
-                                React.createElement('div', { className: "border-b-2 border-slate-800 h-16 w-full mb-2" }),
-                                React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, "Sahihi ya Daktari")
-                            ),
-                            React.createElement('div', { className: "text-center space-y-2" },
-                                React.createElement('div', { className: "border-b-2 border-slate-800 h-16 w-full mb-2" }),
-                                React.createElement('p', { className: "font-bold text-slate-800 text-sm" }, "Muhuri wa Clinic")
-                            )
-                        ),
-                        // Final disclaimer
-                        React.createElement('div', { className: "mt-20 pt-6 border-t border-slate-100 text-center" },
-                            React.createElement('p', { className: "font-playfair italic text-slate-500 text-sm mb-1" }, "\"Afya yako ndio furaha yetu. Tumia dawa kama ulivyoelekezwa.\""),
-                            React.createElement('p', { className: "text-green-800 text-[10px] font-bold tracking-[0.2em] uppercase" }, "Karibu tena Dr. William Herbal Clinic")
                         )
+                    ),
+
+                    // Add Row Button
+                    React.createElement('button', { 
+                        onClick: addRow,
+                        className: "no-print text-green-700 text-xs font-bold mb-8 hover:underline"
+                    }, "+ Ongeza Dawa Nyingine"),
+
+                    // Doctor Notes Section
+                    React.createElement('div', { className: "mt-10" },
+                        React.createElement('h3', { className: "font-bold text-green-800 border-b border-green-800 mb-2" }, "DOCTOR'S ADVICE / NOTES:"),
+                        React.createElement(AutoTextarea, { 
+                            value: data.notes, 
+                            onChange: (v) => setData({...data, notes: v}), 
+                            placeholder: "Andika ushauri au maelezo ya ziada hapa...",
+                            className: "italic text-slate-700 min-h-[150px]" 
+                        })
+                    ),
+
+                    // Footer Signature
+                    React.createElement('div', { className: "mt-20 flex justify-end" },
+                        React.createElement('div', { className: "text-center w-48" },
+                            React.createElement('div', { className: "border-b-2 border-slate-400 mb-2" }),
+                            React.createElement('p', { className: "font-bold text-xs" }, "Dr. William"),
+                            React.createElement('p', { className: "text-[10px] text-slate-500" }, "Authorized Herbalist")
+                        )
+                    ),
+
+                    // Stamp Space
+                    React.createElement('div', { className: "absolute bottom-10 left-10 opacity-10 no-print" },
+                        React.createElement('i', { className: "fas fa-certificate text-8xl text-green-900" })
                     )
-                );
-            };
+                )
+            );
+        };
 
-            // Render the app
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(React.createElement(App));
-        })();
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
     </script>
 </body>
 </html>
