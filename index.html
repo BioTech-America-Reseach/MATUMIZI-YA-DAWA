@@ -2,303 +2,258 @@
 <html lang="sw">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Dr. William - Online Clinic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. William Herbal - Professional Export</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- LIBRARIES ZILIZOREKEBISHWA -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
     
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com"></script>
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
 
     <style>
-        :root { --gold: #D4AF37; --bg: #000; --green: #2ecc71; --red: #e74c3c; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body, html { background: var(--bg); color: white; height: 100%; width: 100%; overflow: hidden; position: fixed; }
+        body { font-family: 'Poppins', sans-serif; background: #f4f7f4; }
+        .font-cinzel { font-family: 'Cinzel', serif; }
         
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('https://img.freepik.com/free-photo/doctor-with-his-arms-crossed-white-background_1368-5790.jpg');
-            background-size: cover; background-position: center; opacity: 0.15; z-index: -1;
+        .paper {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 20px auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
         }
 
-        /* IMPROVED KEYBOARD & TYPING AREA */
-        #install-container { display: none; justify-content: center; padding: 10px; background: #111; border-bottom: 2px solid var(--gold); }
-        #install-btn { background: var(--gold); border: none; padding: 12px 25px; border-radius: 30px; font-weight: bold; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-
-        #main-interface { display: none; flex-direction: column; height: 100%; }
-
-        .chat-header { padding: 15px; background: #111; border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; z-index: 2000; }
-        .online-indicator { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; }
-        .green-dot { width: 10px; height: 10px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        #chat-interface { flex: 1; display: flex; flex-direction: column; position: relative; height: 100%; }
-
-        .chat-messages { 
-            flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;
-            padding-bottom: 90px; transition: padding-bottom 0.3s ease;
-        }
-        .message { padding: 12px; border-radius: 12px; max-width: 80%; font-size: 0.9rem; }
-        .msg-me { background: var(--gold); color: black; align-self: flex-end; }
-        .msg-other { background: #222; color: white; align-self: flex-start; }
-        .msg-time { font-size: 0.65rem; color: #aaa; margin-top: 3px; text-align: right; }
-
-        /* SMOOTH TYPING AREA - MOBILE OPTIMIZED */
-        .typing-area {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: #111; 
-            padding: 12px 15px; display: flex; gap: 10px; align-items: center; 
-            border-top: 1px solid var(--gold); z-index: 3000;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-        .typing-area.keyboard-open {
-            background: #1a1a1a;
-            box-shadow: 0 -4px 20px rgba(212, 175, 55, 0.3);
-        }
-        .input-wrapper {
-            flex: 1; background: #222; border-radius: 25px; padding: 5px 15px; border: 2px solid var(--gold);
-        }
-        .input-wrapper input {
-            width: 100%; background: transparent; border: none; color: white; padding: 14px 0;
-            font-size: 16px; outline: none; /* 16px prevents zoom on iOS */
-        }
-        .btn-send {
-            background: var(--gold); border: none; width: 52px; height: 52px; border-radius: 50%;
-            color: black; font-size: 1.35rem; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        .expanding-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            resize: none;
+            overflow: hidden;
+            background: transparent;
+            display: block;
+            white-space: pre-wrap;
+            min-height: 24px;
         }
 
-        /* Action buttons, login, dashboard... (zimesalia sawa) */
-        .action-buttons { display: flex; justify-content: space-around; padding: 10px; background: #111; border-top: 1px solid #333; }
-        .action-btn { background: transparent; border: none; color: #aaa; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.7rem; cursor: pointer; }
-        .action-btn i { font-size: 1.3rem; padding: 10px; border-radius: 50%; background: #222; }
-        .action-btn:hover i { background: var(--gold); color: black; }
+        /* Maboresho ya Print */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .paper { 
+                box-shadow: none !important; 
+                margin: 0 !important; 
+                width: 100% !important; 
+                padding: 10mm !important;
+                height: auto !important;
+            }
+            .expanding-input { border: none !important; }
+            @page { size: A4; margin: 0; }
+        }
 
-        #login-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; justify-content: center; align-items: center; z-index: 5000; backdrop-filter: blur(5px); }
-        .login-box { background: #111; padding: 30px; border-radius: 20px; border: 2px solid var(--gold); width: 90%; max-width: 400px; text-align: center; }
-        .login-box input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; background: #222; color: white; border: 1px solid #333; text-align: center; }
-        .login-box .small-link { font-size: 0.8rem; color: var(--gold); margin: 15px; cursor: pointer; }
-        .login-box button { background: var(--gold); width:100%; padding:16px; border-radius:12px; border:none; font-weight:bold; cursor: pointer; }
-
-        #doctor-dashboard { display: none; padding: 15px; overflow-y: auto; flex: 1; }
-        .notification-banner { background: var(--gold); color: black; padding: 12px; border-radius: 10px; margin-bottom: 15px; display: none; align-items: center; gap: 10px; animation: slideDown 0.3s; }
-        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        .patient-card { background: #111; padding: 15px; border-radius: 15px; margin-bottom: 12px; border-left: 5px solid var(--gold); display: flex; flex-direction: column; gap: 10px; }
-        .patient-info { display: flex; justify-content: space-between; align-items: center; }
-        .patient-name { font-weight: bold; font-size: 1.1rem; }
-        .patient-phone { color: #aaa; font-size: 0.8rem; }
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
-        .status-online { background: rgba(46, 204, 113, 0.2); color: var(--green); border: 1px solid var(--green); }
-        .status-waiting { background: rgba(241, 196, 15, 0.2); color: #f1c40f; border: 1px solid #f1c40f; }
-        
-        .patient-actions { display: flex; gap: 10px; }
-        .btn-action { flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .btn-hold { background: #f39c12; color: black; }
-        .btn-remove { background: var(--red); color: white; }
-        .btn-chat { background: var(--gold); color: black; }
-
-        .waiting-message { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 10px; text-align: center; margin: 10px; border-left: 5px solid var(--gold); }
+        .btn-tool {
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+        }
+        .btn-tool:hover { transform: translateY(-2px); opacity: 0.9; }
     </style>
 </head>
 <body>
-
-    <audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
-
-    <!-- Install Button -->
-    <div id="install-container">
-        <button id="install-btn"><i class="fas fa-download"></i> Sakinisha App</button>
-    </div>
-
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen">
-        <div class="login-box">
-            <h2 style="color:var(--gold)">🏥 DR. WILLIAM</h2>
-            <input type="text" id="name-input" placeholder="Jina lako">
-            <input type="tel" id="phone-input" placeholder="Namba ya simu (0xxxxxxxxx)" maxlength="10">
-            <input type="password" id="doctor-code" placeholder="PIN ya Daktari" style="display: none;">
-            <div class="small-link" onclick="document.getElementById('doctor-code').style.display='block'">Ingia kama Daktari</div>
-            <button onclick="startApp()">INGIA</button>
-        </div>
-    </div>
-
-    <!-- MAIN INTERFACE -->
-    <div id="main-interface">
-        <div class="chat-header">
-            <div>
-                <span id="chat-title" style="color:var(--gold); font-weight:bold;">Dr. William</span>
-                <div class="online-indicator" id="online-indicator">
-                    <span class="green-dot"></span>
-                    <span>Online</span>
-                </div>
-            </div>
-            <button id="back-btn" onclick="goBack()" style="display:none; background:none; color:white; border:1px solid var(--gold); padding:5px 12px; border-radius:15px;">Rudi</button>
-        </div>
-
-        <!-- DOCTOR DASHBOARD -->
-        <div id="doctor-dashboard">
-            <div id="notification-area" class="notification-banner"></div>
-            <h4 style="margin-bottom:15px; color:#888;">WAGONJWA WOTE:</h4>
-            <div id="patient-list"></div>
-        </div>
-
-        <!-- CHAT INTERFACE -->
-        <div id="chat-interface" style="display:none;">
-            <div class="chat-messages" id="chat-flow"></div>
-            
-            <div id="waiting-notice" class="waiting-message" style="display:none;">
-                ⏳ Daktari atajibu hivi karibuni... Tafadhali subiri.
-            </div>
-
-            <div class="action-buttons">
-                <button class="action-btn" onclick="openWhatsApp()"><i class="fab fa-whatsapp"></i> <span>Picha</span></button>
-                <a href="tel:+255762286282" class="action-btn"><i class="fas fa-phone-alt"></i> <span>Simu</span></a>
-            </div>
-
-            <div class="typing-area" id="typing-box">
-                <div class="input-wrapper">
-                    <input type="text" id="msg-input" 
-                           placeholder="Andika ujumbe..." 
-                           inputmode="text"
-                           enterkeyhint="send"
-                           autocapitalize="sentences"
-                           autocomplete="off"
-                           onfocus="raiseInput()" 
-                           onblur="lowerInput()">
-                </div>
-                <button class="btn-send" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
-    </div>
+    <div id="root"></div>
 
     <script>
-        // 🔥 FIREBASE CONFIG (iliyobaki sawa)
-        const firebaseConfig = {
-            apiKey: "AIzaSyB...",
-            authDomain: "drwilliamtz.firebaseapp.com",
-            databaseURL: "https://drwilliamtz-e44aa-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "drwilliamtz",
-            storageBucket: "drwilliamtz.appspot.com",
-            messagingSenderId: "1234567890",
-            appId: "1:1234567890:web:abc123..."
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        const { useState, useEffect, useRef } = React;
 
-        // ==================== GLOBAL VARIABLES ====================
-        let myName = "";
-        let myPhone = "";
-        let isDoctor = false;
-        let activeRoomId = "";
-        let myPatientRef = null;
-        let currentMessagesListener = null;
-
-        const loginScreen = document.getElementById('login-screen');
-        const mainInterface = document.getElementById('main-interface');
-        const doctorDashboard = document.getElementById('doctor-dashboard');
-        const chatInterface = document.getElementById('chat-interface');
-        const patientListDiv = document.getElementById('patient-list');
-        const chatFlow = document.getElementById('chat-flow');
-        const msgInput = document.getElementById('msg-input');
-        const backBtn = document.getElementById('back-btn');
-        const chatTitle = document.getElementById('chat-title');
-        const waitingNotice = document.getElementById('waiting-notice');
-        const notificationArea = document.getElementById('notification-area');
-        const onlineIndicator = document.getElementById('online-indicator');
-        const typingArea = document.getElementById('typing-box');
-
-        // ==================== PWA INSTALL (iliyobaki sawa) ====================
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('install-container').style.display = 'flex';
-        });
-        document.getElementById('install-btn').addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            document.getElementById('install-container').style.display = 'none';
-        });
-
-        // ==================== LOGIN (iliyobaki sawa) ====================
-        const savedName = localStorage.getItem('drwilliam_name');
-        const savedPhone = localStorage.getItem('drwilliam_phone');
-        if (savedName) document.getElementById('name-input').value = savedName;
-        if (savedPhone) document.getElementById('phone-input').value = savedPhone;
-
-        window.startApp = function() { /* ... code yako yote ya startApp imebaki sawa ... */ };
-
-        // ==================== KEYBOARD IMPROVEMENT (NEW & SMOOTH) ====================
-        let keyboardHeight = 0;
-
-        function handleVisualViewport() {
-            if (!('visualViewport' in window)) return;
-            
-            const vv = window.visualViewport;
-            keyboardHeight = window.innerHeight - vv.height;
-            
-            if (keyboardHeight > 120) { // keyboard imefunguka
-                typingArea.classList.add('keyboard-open');
-                chatFlow.style.paddingBottom = (keyboardHeight + 100) + 'px';
-                setTimeout(() => chatFlow.scrollTop = chatFlow.scrollHeight, 100);
-            } else {
-                typingArea.classList.remove('keyboard-open');
-                chatFlow.style.paddingBottom = '90px';
-            }
-        }
-
-        function raiseInput() {
-            handleVisualViewport();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function lowerInput() {
-            setTimeout(() => {
-                typingArea.classList.remove('keyboard-open');
-                chatFlow.style.paddingBottom = '90px';
-            }, 150);
-        }
-
-        // Attach viewport listener
-        if ('visualViewport' in window) {
-            window.visualViewport.addEventListener('resize', handleVisualViewport);
-            window.visualViewport.addEventListener('scroll', handleVisualViewport);
-        }
-        window.addEventListener('resize', handleVisualViewport);
-
-        // ==================== REST OF YOUR CODE (imesalia 100% sawa) ====================
-        // (showDoctorDashboard, openDoctorChat, openPatientChat, listenForMessages, sendMsg, goBack, openWhatsApp ... zote zimesalia sawa)
-
-        window.sendMsg = function() {
-            const text = msgInput.value.trim();
-            if (!text || !activeRoomId) return;
-            
-            db.ref('messages/' + activeRoomId).push({
-                sender: isDoctor ? "Dr. William" : myName,
-                text: text,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+        const App = () => {
+            const [data, setData] = useState({
+                name: '', age: '', date: new Date().toLocaleDateString(),
+                address: '', meds: [{ id: 1, n: '', d: '', i: '' }],
+                notes: ''
             });
-            
-            msgInput.value = "";
-            msgInput.focus();
+
+            const paperRef = useRef();
+
+            // Auto-expand function
+            const handleInput = (e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+            };
+
+            // EXPORT TO IMAGE (PNG)
+            const exportAsImage = () => {
+                const btn = document.querySelector('.no-print');
+                btn.style.display = 'none'; // Ficha buttons muda wa kupiga picha
+                html2canvas(paperRef.current, { scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Prescription_${data.name || 'Patient'}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    btn.style.display = 'flex';
+                });
+            };
+
+            // EXPORT TO WORD (.doc)
+            const exportToWord = () => {
+                const content = `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+                    <head><meta charset='utf-8'></head>
+                    <body style="font-family:Arial">
+                        <h1 style='text-align:center; color:#1a472a;'>DR. WILLIAM HERBAL CLINIC</h1>
+                        <p><b>Patient Name:</b> ${data.name}</p>
+                        <p><b>Date:</b> ${data.date}</p>
+                        <hr>
+                        <h3>PRESCRIPTION (Rx):</h3>
+                        <table border="1" cellspacing="0" cellpadding="5" style="width:100%">
+                            <tr><th>Medicine</th><th>Dosage</th><th>Instructions</th></tr>
+                            ${data.meds.map(m => `<tr><td>${m.n}</td><td>${m.d}</td><td>${m.i}</td></tr>`).join('')}
+                        </table>
+                        <br>
+                        <h3>DOCTOR'S NOTES:</h3>
+                        <p>${data.notes.replace(/\n/g, '<br>')}</p>
+                    </body>
+                    </html>`;
+                const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Prescription_${data.name || 'Patient'}.doc`;
+                link.click();
+            };
+
+            return React.createElement('div', { className: "pb-20" },
+                // Toolbar
+                React.createElement('div', { className: "no-print sticky top-0 bg-white shadow-md p-4 flex justify-center gap-4 z-50" },
+                    React.createElement('button', { onClick: () => window.print(), className: "btn-tool bg-green-700" }, 
+                        React.createElement('i', { className: "fas fa-file-pdf" }), "PDF / Print"),
+                    React.createElement('button', { onClick: exportAsImage, className: "btn-tool bg-blue-600" }, 
+                        React.createElement('i', { className: "fas fa-image" }), "Save Image"),
+                    React.createElement('button', { onClick: exportToWord, className: "btn-tool bg-slate-800" }, 
+                        React.createElement('i', { className: "fas fa-file-word" }), "Save Word")
+                ),
+
+                // Prescription Paper
+                React.createElement('div', { ref: paperRef, className: "paper", id: "prescription" },
+                    // Header
+                    React.createElement('div', { className: "text-center border-b-4 border-green-900 pb-4 mb-6" },
+                        React.createElement('h1', { className: "font-cinzel text-4xl text-green-900" }, "DR. WILLIAM HERBAL"),
+                        React.createElement('p', { className: "text-sm italic" }, "Natural Medicine & Wellness Expert | Dar es Salaam")
+                    ),
+
+                    // Patient Info
+                    React.createElement('div', { className: "grid grid-cols-2 gap-6 mb-8" },
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-gray-500" }, "PATIENT NAME"),
+                            React.createElement('input', { 
+                                value: data.name, 
+                                onChange: (e) => setData({...data, name: e.target.value}),
+                                className: "w-full border-b border-gray-300 outline-none py-1 font-semibold",
+                                placeholder: "Enter name"
+                            })
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { className: "block text-[10px] font-bold text-gray-500" }, "DATE"),
+                            React.createElement('input', { 
+                                value: data.date, 
+                                onChange: (e) => setData({...data, date: e.target.value}),
+                                className: "w-full border-b border-gray-300 outline-none py-1"
+                            })
+                        )
+                    ),
+
+                    React.createElement('div', { className: "text-4xl text-green-900 font-serif italic mb-4" }, "Rx"),
+                    
+                    // Table
+                    React.createElement('table', { className: "w-full mb-6 border-collapse" },
+                        React.createElement('thead', { className: "bg-gray-50 text-left" },
+                            React.createElement('tr', null,
+                                React.createElement('th', { className: "p-2 border text-xs" }, "Herbal Medicine"),
+                                React.createElement('th', { className: "p-2 border text-xs w-24" }, "Dosage"),
+                                React.createElement('th', { className: "p-2 border text-xs" }, "Instructions")
+                            )
+                        ),
+                        React.createElement('tbody', null,
+                            data.meds.map((m, idx) => 
+                                React.createElement('tr', { key: m.id },
+                                    React.createElement('td', { className: "border p-1" }, 
+                                        React.createElement('textarea', { 
+                                            value: m.n,
+                                            onInput: handleInput,
+                                            onChange: (e) => {
+                                                const newMeds = [...data.meds];
+                                                newMeds[idx].n = e.target.value;
+                                                setData({...data, meds: newMeds});
+                                            },
+                                            className: "expanding-input text-sm", placeholder: "Name..." 
+                                        })
+                                    ),
+                                    React.createElement('td', { className: "border p-1" }, 
+                                        React.createElement('input', { 
+                                            value: m.d,
+                                            onChange: (e) => {
+                                                const newMeds = [...data.meds];
+                                                newMeds[idx].d = e.target.value;
+                                                setData({...data, meds: newMeds});
+                                            },
+                                            className: "w-full outline-none p-1 text-sm", placeholder: "2x3" 
+                                        })
+                                    ),
+                                    React.createElement('td', { className: "border p-1" }, 
+                                        React.createElement('textarea', { 
+                                            value: m.i,
+                                            onInput: handleInput,
+                                            onChange: (e) => {
+                                                const newMeds = [...data.meds];
+                                                newMeds[idx].i = e.target.value;
+                                                setData({...data, meds: newMeds});
+                                            },
+                                            className: "expanding-input text-sm", placeholder: "Instructions..." 
+                                        })
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    React.createElement('button', { 
+                        onClick: () => setData({...data, meds: [...data.meds, {id: Date.now(), n:'', d:'', i:''}]}),
+                        className: "no-print text-green-700 text-xs font-bold mb-8 hover:underline" 
+                    }, "+ Add Medicine"),
+
+                    // NOTES
+                    React.createElement('div', { className: "mt-4" },
+                        React.createElement('h3', { className: "font-bold text-green-900 border-b-2 border-green-900 mb-2 text-sm" }, "DOCTOR'S NOTES & ADVICE"),
+                        React.createElement('textarea', {
+                            onInput: handleInput,
+                            value: data.notes,
+                            onChange: (e) => setData({...data, notes: e.target.value}),
+                            className: "expanding-input min-h-[150px] text-gray-700 text-sm leading-relaxed",
+                            placeholder: "Andika maelezo ya tiba hapa..."
+                        })
+                    ),
+
+                    // Sign
+                    React.createElement('div', { className: "absolute bottom-16 right-20 text-center" },
+                        React.createElement('div', { className: "w-32 border-b border-gray-400 mb-1" }),
+                        React.createElement('p', { className: "font-bold text-xs" }, "Dr. William"),
+                        React.createElement('p', { className: "text-[10px] text-gray-400" }, "Authorized Expert")
+                    )
+                )
+            );
         };
 
-        msgInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMsg();
-            }
-        });
-
-        // ... (code yako yote ya doctor dashboard, patient chat, n.k. inabaki sawa hadi mwisho)
-
-        window.onload = function() {
-            // Auto-login optional
-        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
