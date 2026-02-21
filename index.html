@@ -3,168 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dr. William Herbal · Prescription System</title>
+    <title>Dr. William Herbal - Prescription</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Cinzel:wght@700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #f8faf8; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f0f4f0;
+        }
         .font-cinzel { font-family: 'Cinzel', serif; }
         .font-playfair { font-family: 'Playfair Display', serif; }
+        
         @media print {
+            /* Ficha vitu visivyohitajika */
             .no-print { display: none !important; }
-            body { background: white; }
-            #prescription-paper { box-shadow: none !important; border: none !important; width: 100% !important; margin: 0 !important; }
+            
+            /* Ruhusa ya kurasa kuvunjika vizuri */
+            body, html {
+                background: white;
+                padding: 0;
+                margin: 0;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            
+            #prescription-paper {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 1.5cm !important;
+                overflow: visible !important; /* Hakikisha hakuna kukatika */
+                height: auto !important;
+                page-break-after: avoid;
+                page-break-inside: auto; /* Ruhusu kuvunjika kwa kurasa */
+            }
+            
+            /* Hakikisha jedwali linavunjika vizuri */
+            .med-table {
+                page-break-inside: auto;
+            }
+            
+            .med-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            .med-table thead {
+                display: table-header-group; /* Rudia vichwa vya jedwali kila ukurasa */
+            }
+            
+            .med-table tbody {
+                page-break-inside: auto;
+            }
+            
+            /* Vipengele muhimu visivunjike ndani yao */
+            .patient-info, .rx-symbol, .notes-section, .footer, .footer-note {
+                page-break-inside: avoid;
+            }
+            
+            /* Maandiko yawe yanaonekana yote */
+            .auto-expand-textarea {
+                height: auto !important;
+                overflow: visible !important;
+                border: none !important;
+                background: transparent !important;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                min-height: auto !important;
+                max-height: none !important;
+            }
+            
+            /* Weka margins za kurasa */
+            @page {
+                margin: 1.5cm;
+                size: A4;
+            }
         }
+        
+        .auto-expand-textarea {
+            resize: none;
+            overflow: hidden;
+            min-height: 2.5rem;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #2e7d32; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #1b5e20; }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.575.0",
+    "jspdf": "https://esm.sh/jspdf@^4.2.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
+  }
+}
+</script>
 </head>
 <body>
     <div id="root"></div>
-
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-
-        // --- Custom Component for Icons ---
-        const Icon = ({ name, size = 18, className = "" }) => {
-            useEffect(() => { lucide.createIcons(); }, []);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
-
-        const App = () => {
-            const [data, setData] = useState({
-                patientName: '',
-                patientAddress: '',
-                date: new Date().toISOString().split('T')[0],
-                patientAgeGender: '',
-                medications: [
-                    { id: '1', name: 'Dawa Namba 1', dosage: 'Asubuhi & Jioni', instructions: 'Changanya kwenye uji maalum wa mafuta ya mnyonyo.' },
-                    { id: '2', name: 'Dawa Namba 2', dosage: 'Mchana', instructions: 'Vitunguu saumu 4 na chumvi kidogo.' }
-                ],
-                doctorNotes: 'Zingatia masharti ya uandaaji wa mafuta ya mnyonyo.'
-            });
-
-            const paperRef = useRef(null);
-
-            const addRow = () => {
-                const newRow = { id: Math.random().toString(36).substr(2, 9), name: '', dosage: '', instructions: '' };
-                setData(prev => ({ ...prev, medications: [...prev.medications, newRow] }));
-            };
-
-            const updateRow = (id, field, value) => {
-                setData(prev => ({
-                    ...prev,
-                    medications: prev.medications.map(row => row.id === id ? { ...row, [field]: value } : row)
-                }));
-            };
-
-            const exportPDF = () => {
-                const element = paperRef.current;
-                html2canvas(element, { scale: 2 }).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                    pdf.addImage(imgData, 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
-                    pdf.save(`Tiba_${data.patientName}.pdf`);
-                });
-            };
-
-            return (
-                <div className="min-h-screen py-10 px-4">
-                    {/* Controls */}
-                    <div className="max-w-4xl mx-auto mb-8 flex flex-wrap gap-3 no-print justify-center">
-                        <button onClick={addRow} className="bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-green-800 transition shadow-md">
-                            <Icon name="plus-circle" /> Ongeza Dawa
-                        </button>
-                        <button onClick={exportPDF} className="bg-emerald-600 text-white px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-emerald-700 transition shadow-md">
-                            <Icon name="file-down" /> Pakua PDF
-                        </button>
-                        <button onClick={() => window.print()} className="bg-slate-800 text-white px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-900 transition shadow-md">
-                            <Icon name="printer" /> Chapisha
-                        </button>
-                    </div>
-
-                    {/* Prescription Sheet */}
-                    <div ref={paperRef} id="prescription-paper" className="max-w-[800px] mx-auto bg-white shadow-2xl p-10 border-t-[10px] border-green-700 rounded-lg relative overflow-hidden">
-                        
-                        {/* Header */}
-                        <div className="text-center border-b-2 border-green-100 pb-6 mb-8">
-                            <div className="flex justify-center mb-4">
-                                <div className="w-16 h-16 bg-green-700 rounded-full flex items-center justify-center text-white">
-                                    <Icon name="leaf" size={32} />
-                                </div>
-                            </div>
-                            <h1 className="font-cinzel text-3xl text-green-900">DR. WILLIAM HERBAL CLINIC</h1>
-                            <p className="text-amber-700 text-sm tracking-widest font-bold">TIBA ASILI NA LISHE</p>
-                            <div className="flex justify-center gap-6 mt-4 text-xs text-gray-500">
-                                <span className="flex items-center gap-1"><Icon name="phone" size={12}/> +255 762 286 282</span>
-                                <span className="flex items-center gap-1"><Icon name="map-pin" size={12}/> Kitunda, Dar es Salaam</span>
-                            </div>
-                        </div>
-
-                        {/* Patient Info */}
-                        <div className="grid grid-cols-2 gap-4 mb-8 bg-green-50 p-4 rounded-lg">
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-green-800">JINA LA MGONJWA</label>
-                                <input value={data.patientName} onChange={e => setData({...data, patientName: e.target.value})} className="bg-transparent border-b border-green-200 outline-none py-1 font-medium" />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-green-800">TAREHE</label>
-                                <input type="date" value={data.date} onChange={e => setData({...data, date: e.target.value})} className="bg-transparent border-b border-green-200 outline-none py-1" />
-                            </div>
-                        </div>
-
-                        <div className="text-4xl font-cinzel text-amber-600 mb-4 opacity-50">Rx</div>
-
-                        {/* Table */}
-                        <table className="w-full mb-10">
-                            <thead>
-                                <tr className="bg-green-700 text-white text-left text-xs uppercase">
-                                    <th className="p-3">Dawa</th>
-                                    <th className="p-3">Dosi</th>
-                                    <th className="p-3">Maelekezo ya Matumizi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {data.medications.map(row => (
-                                    <tr key={row.id}>
-                                        <td className="p-3"><input value={row.name} onChange={e => updateRow(row.id, 'name', e.target.value)} className="w-full outline-none font-bold text-green-900" /></td>
-                                        <td className="p-3"><input value={row.dosage} onChange={e => updateRow(row.id, 'dosage', e.target.value)} className="w-full outline-none" /></td>
-                                        <td className="p-3"><textarea value={row.instructions} onChange={e => updateRow(row.id, 'instructions', e.target.value)} className="w-full outline-none text-sm italic text-gray-600 resize-none" rows="2" /></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
-                        {/* Notes */}
-                        <div className="border-l-4 border-amber-500 bg-amber-50 p-4 mb-10">
-                            <h4 className="text-xs font-bold text-amber-800 mb-2 uppercase italic">Maelekezo Muhimu ya Daktari:</h4>
-                            <textarea value={data.doctorNotes} onChange={e => setData({...data, doctorNotes: e.target.value})} className="w-full bg-transparent outline-none text-sm text-gray-700 min-h-[80px]" />
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex justify-between mt-12 pt-10 border-t border-gray-100">
-                            <div className="text-center">
-                                <div className="w-40 border-b border-gray-400 mb-2"></div>
-                                <p className="text-[10px] font-bold">SAHIHI YA DAKTARI</p>
-                            </div>
-                            <div className="text-center">
-                                <div className="w-40 border-b border-gray-400 mb-2"></div>
-                                <p className="text-[10px] font-bold">MUHURI WA CLINIC</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
 </body>
 </html>
