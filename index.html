@@ -3,27 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dr. William Herbal - Professional Export</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+    <title>Dr. William Herbal - Professional Export System</title>
     
-    <!-- Libraries for Export -->
-    <script src="https://cdnjs.cloudflare.com"></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #f4f7f4; }
+        body { font-family: 'Poppins', sans-serif; background: #eef2ee; }
         .font-cinzel { font-family: 'Cinzel', serif; }
         
         .paper {
             background: white;
             width: 210mm;
             min-height: 297mm;
-            padding: 20mm;
+            padding: 15mm;
             margin: 20px auto;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             position: relative;
         }
 
@@ -36,180 +39,234 @@
             background: transparent;
             display: block;
             white-space: pre-wrap;
+            font-size: 14px;
         }
 
         @media print {
             .no-print { display: none !important; }
-            body { background: white; }
-            .paper { box-shadow: none; margin: 0; width: 100%; padding: 10mm; }
+            body { background: white; padding: 0; margin: 0; }
+            .paper { box-shadow: none; margin: 0; width: 100%; padding: 10mm; border: none; }
             .expanding-input { border: none !important; }
+            @page { size: A4; margin: 0; }
+        }
+
+        .toolbar-btn {
+            transition: all 0.3s ease;
+        }
+        .toolbar-btn:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <script>
+    <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
         const App = () => {
             const [data, setData] = useState({
-                name: '', age: '', date: new Date().toLocaleDateString(),
+                name: '', age: '', date: new Date().toLocaleDateString('en-GB'),
                 address: '', meds: [{ id: 1, n: '', d: '', i: '' }],
                 notes: ''
             });
 
             const paperRef = useRef();
 
-            // Auto-expand function
+            // Auto-expand logic
             const handleInput = (e) => {
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
             };
 
-            // EXPORT TO IMAGE
             const exportAsImage = () => {
-                html2canvas(paperRef.current).then(canvas => {
+                const btn = document.querySelector('.export-img-btn');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                
+                html2canvas(paperRef.current, { scale: 2 }).then(canvas => {
                     const link = document.createElement('a');
-                    link.download = `Prescription_${data.name || 'Patient'}.png`;
-                    link.href = canvas.toDataURL();
+                    link.download = `Prescription_Dr_William_${data.name || 'Patient'}.png`;
+                    link.href = canvas.toDataURL('image/png');
                     link.click();
+                    btn.innerHTML = '<i class="fas fa-image"></i> Save as Image';
                 });
             };
 
-            // EXPORT TO WORD (.docx)
             const exportToWord = () => {
                 const content = `
-                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
-                    <head><meta charset='utf-8'></head>
-                    <body>
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><meta charset='utf-8'><title>Prescription</title></head>
+                    <body style="font-family:Arial, sans-serif;">
                         <h1 style='text-align:center; color:#1a472a;'>DR. WILLIAM HERBAL CLINIC</h1>
-                        <p><b>Patient Name:</b> ${data.name}</p>
-                        <p><b>Date:</b> ${data.date}</p>
+                        <p style="text-align:center;"><i>Natural Medicine & Wellness Expert</i></p>
                         <hr>
-                        <h3>PRESCRIPTION:</h3>
-                        ${data.meds.map(m => `<p>• ${m.n} - ${m.d} (${m.i})</p>`).join('')}
+                        <p><b>Mgonjwa:</b> ${data.name} <span style="margin-left:50px;"><b>Tarehe:</b> ${data.date}</span></p>
                         <br>
-                        <h3>DOCTOR'S NOTES:</h3>
+                        <h3>MCHANGANYIKO WA DAWA (Rx):</h3>
+                        <table border="1" cellspacing="0" cellpadding="5" style="width:100%;">
+                            <tr style="background:#f2f2f2;"><th>Dawa</th><th>Dosi</th><th>Maelekezo</th></tr>
+                            ${data.meds.map(m => `<tr><td>${m.n}</td><td>${m.d}</td><td>${m.i}</td></tr>`).join('')}
+                        </table>
+                        <br>
+                        <h3>MAELEKEZO YA ZIADA:</h3>
                         <p>${data.notes.replace(/\n/g, '<br>')}</p>
                     </body>
                     </html>`;
+                
                 const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-                const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.href = url;
+                link.href = URL.createObjectURL(blob);
                 link.download = `Prescription_${data.name || 'Patient'}.doc`;
                 link.click();
             };
 
-            return React.createElement('div', { className: "pb-20" },
-                // Toolbar
-                React.createElement('div', { className: "no-print sticky top-0 bg-white shadow-md p-4 flex justify-center gap-4 z-50" },
-                    React.createElement('button', { onClick: () => window.print(), className: "bg-green-700 text-white px-4 py-2 rounded flex items-center gap-2" }, 
-                        React.createElement('i', { className: "fas fa-file-pdf" }), "Print / Save PDF"),
-                    React.createElement('button', { onClick: exportAsImage, className: "bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2" }, 
-                        React.createElement('i', { className: "fas fa-image" }), "Save as Image"),
-                    React.createElement('button', { onClick: exportToWord, className: "bg-blue-800 text-white px-4 py-2 rounded flex items-center gap-2" }, 
-                        React.createElement('i', { className: "fas fa-file-word" }), "Save as Word")
-                ),
+            return (
+                <div className="pb-20">
+                    {/* Toolbar */}
+                    <div className="no-print sticky top-0 bg-white/90 backdrop-blur-md shadow-lg p-4 flex flex-wrap justify-center gap-4 z-50 border-b border-green-100">
+                        <button onClick={() => window.print()} className="toolbar-btn bg-green-700 text-white px-5 py-2 rounded-full font-semibold shadow-md flex items-center gap-2">
+                            <i className="fas fa-print"></i> Print / PDF
+                        </button>
+                        <button onClick={exportAsImage} className="toolbar-btn export-img-btn bg-amber-600 text-white px-5 py-2 rounded-full font-semibold shadow-md flex items-center gap-2">
+                            <i className="fas fa-image"></i> Save as Image
+                        </button>
+                        <button onClick={exportToWord} className="toolbar-btn bg-blue-700 text-white px-5 py-2 rounded-full font-semibold shadow-md flex items-center gap-2">
+                            <i className="fas fa-file-word"></i> Save as Word
+                        </button>
+                    </div>
 
-                // Prescription Paper
-                React.createElement('div', { ref: paperRef, className: "paper", id: "prescription" },
-                    // Header
-                    React.createElement('div', { className: "text-center border-b-4 border-green-900 pb-4 mb-6" },
-                        React.createElement('h1', { className: "font-cinzel text-4xl text-green-900" }, "DR. WILLIAM HERBAL"),
-                        React.createElement('p', { className: "text-sm italic" }, "Natural Medicine & Wellness Expert | Dar es Salaam")
-                    ),
+                    {/* Prescription Paper */}
+                    <div ref={paperRef} className="paper" id="prescription">
+                        {/* Decorative Border */}
+                        <div className="absolute top-0 left-0 w-full h-2 bg-green-800"></div>
+                        
+                        {/* Header */}
+                        <div className="text-center mb-10">
+                            <h1 className="font-cinzel text-5xl text-green-900 tracking-tighter">DR. WILLIAM HERBAL</h1>
+                            <div className="h-1 w-24 bg-amber-600 mx-auto my-2"></div>
+                            <p className="text-sm font-bold text-gray-600 uppercase tracking-widest">Natural Medicine & Wellness Expert</p>
+                            <p className="text-xs text-gray-500">Kitunda, Dar es Salaam | +255 762 286 282</p>
+                        </div>
 
-                    // Patient Info
-                    React.createElement('div', { className: "grid grid-cols-2 gap-6 mb-8" },
-                        React.createElement('div', null,
-                            React.createElement('label', { className: "block text-xs font-bold text-gray-500" }, "PATIENT NAME"),
-                            React.createElement('input', { 
-                                value: data.name, 
-                                onChange: (e) => setData({...data, name: e.target.value}),
-                                className: "w-full border-b border-gray-300 outline-none py-1 font-semibold",
-                                placeholder: "Enter patient name"
-                            })
-                        ),
-                        React.createElement('div', null,
-                            React.createElement('label', { className: "block text-xs font-bold text-gray-500" }, "DATE"),
-                            React.createElement('input', { 
-                                value: data.date, 
-                                onChange: (e) => setData({...data, date: e.target.value}),
-                                className: "w-full border-b border-gray-300 outline-none py-1"
-                            })
-                        )
-                    ),
+                        {/* Patient Info */}
+                        <div className="grid grid-cols-2 gap-10 mb-10 border-y border-gray-100 py-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-green-800 tracking-widest">PATIENT NAME</label>
+                                <input 
+                                    value={data.name} 
+                                    onChange={(e) => setData({...data, name: e.target.value})}
+                                    className="w-full border-b-2 border-transparent focus:border-amber-500 outline-none py-1 font-bold text-lg text-gray-800 transition-all"
+                                    placeholder="Jina la Mgonjwa..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-green-800 tracking-widest">DATE</label>
+                                <input 
+                                    value={data.date} 
+                                    onChange={(e) => setData({...data, date: e.target.value})}
+                                    className="w-full border-b-2 border-transparent focus:border-amber-500 outline-none py-1 text-gray-700"
+                                />
+                            </div>
+                        </div>
 
-                    // Prescription Rx
-                    React.createElement('div', { className: "text-4xl text-green-900 font-serif italic mb-4" }, "Rx"),
-                    
-                    // Meds Table
-                    React.createElement('table', { className: "w-full mb-10" },
-                        React.createElement('thead', { className: "bg-gray-100 text-left" },
-                            React.createElement('tr', null,
-                                React.createElement('th', { className: "p-2 border" }, "Herbal Medicine"),
-                                React.createElement('th', { className: "p-2 border w-1/4" }, "Dosage"),
-                                React.createElement('th', { className: "p-2 border" }, "Instructions")
-                            )
-                        ),
-                        React.createElement('tbody', null,
-                            data.meds.map((m, idx) => 
-                                React.createElement('tr', { key: m.id },
-                                    React.createElement('td', { className: "border p-1" }, 
-                                        React.createElement('textarea', { 
-                                            onInput: handleInput,
-                                            onChange: (e) => {
-                                                const newMeds = [...data.meds];
-                                                newMeds[idx].n = e.target.value;
-                                                setData({...data, meds: newMeds});
-                                            },
-                                            className: "expanding-input p-1", placeholder: "Medicine name..." 
-                                        })
-                                    ),
-                                    React.createElement('td', { className: "border p-1" }, 
-                                        React.createElement('input', { className: "w-full outline-none p-1", placeholder: "e.g. 2x3" })
-                                    ),
-                                    React.createElement('td', { className: "border p-1" }, 
-                                        React.createElement('textarea', { 
-                                            onInput: handleInput,
-                                            className: "expanding-input p-1", placeholder: "Instructions..." 
-                                        })
-                                    )
-                                )
-                            )
-                        )
-                    ),
+                        {/* Rx Symbol */}
+                        <div className="text-5xl text-green-900 font-serif italic mb-6 select-none">Rx</div>
+                        
+                        {/* Meds Table */}
+                        <table className="w-full mb-6 border-collapse">
+                            <thead>
+                                <tr className="bg-green-50 text-left border-b-2 border-green-800">
+                                    <th className="p-3 text-xs font-black text-green-900 uppercase">Herbal Remedy</th>
+                                    <th className="p-3 text-xs font-black text-green-900 uppercase w-32">Dosage</th>
+                                    <th className="p-3 text-xs font-black text-green-900 uppercase">Specific Instructions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.meds.map((m, idx) => (
+                                    <tr key={m.id} className="border-b border-gray-100">
+                                        <td className="p-2">
+                                            <textarea 
+                                                onInput={handleInput}
+                                                onChange={(e) => {
+                                                    const newMeds = [...data.meds];
+                                                    newMeds[idx].n = e.target.value;
+                                                    setData({...data, meds: newMeds});
+                                                }}
+                                                rows="1"
+                                                className="expanding-input font-bold text-green-800" 
+                                                placeholder="Medicine Name..." 
+                                            />
+                                        </td>
+                                        <td className="p-2">
+                                            <input 
+                                                onChange={(e) => {
+                                                    const newMeds = [...data.meds];
+                                                    newMeds[idx].d = e.target.value;
+                                                    setData({...data, meds: newMeds});
+                                                }}
+                                                className="w-full outline-none text-gray-700" 
+                                                placeholder="e.g. 1x3" 
+                                            />
+                                        </td>
+                                        <td className="p-2">
+                                            <textarea 
+                                                onInput={handleInput}
+                                                onChange={(e) => {
+                                                    const newMeds = [...data.meds];
+                                                    newMeds[idx].i = e.target.value;
+                                                    setData({...data, meds: newMeds});
+                                                }}
+                                                rows="1"
+                                                className="expanding-input italic text-gray-600" 
+                                                placeholder="How to use..." 
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
 
-                    React.createElement('button', { 
-                        onClick: () => setData({...data, meds: [...data.meds, {id: Date.now(), n:'', d:'', i:''}]}),
-                        className: "no-print text-green-700 text-sm font-bold mb-10" 
-                    }, "+ Add Medicine"),
+                        <button 
+                            onClick={() => setData({...data, meds: [...data.meds, {id: Date.now(), n:'', d:'', i:''}]})}
+                            className="no-print text-green-700 hover:text-green-900 text-xs font-black uppercase tracking-tighter flex items-center gap-1 mb-10 transition-colors"
+                        >
+                            <i className="fas fa-plus-circle"></i> Add Row
+                        </button>
 
-                    // NOTES SECTION (Crucial for Print)
-                    React.createElement('div', { className: "mt-10" },
-                        React.createElement('h3', { className: "font-bold text-green-900 border-b-2 border-green-900 mb-2" }, "DOCTOR'S NOTES & ADVICE"),
-                        React.createElement('textarea', {
-                            onInput: handleInput,
-                            value: data.notes,
-                            onChange: (e) => setData({...data, notes: e.target.value}),
-                            className: "expanding-input min-h-[200px] text-gray-700 leading-relaxed",
-                            placeholder: "Andika maelezo yote ya tiba hapa..."
-                        })
-                    ),
+                        {/* Advice Section */}
+                        <div className="mt-10 bg-gray-50 p-6 rounded-xl border-l-4 border-amber-500">
+                            <h3 className="font-black text-green-900 text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <i className="fas fa-clipboard-check"></i> Doctor's Notes & Nutrition Advice
+                            </h3>
+                            <textarea
+                                onInput={handleInput}
+                                value={data.notes}
+                                onChange={(e) => setData({...data, notes: e.target.value})}
+                                className="expanding-input min-h-[150px] text-gray-700 leading-relaxed text-sm"
+                                placeholder="Andika hapa maelezo ya chakula, miko, na jinsi ya kuandaa dawa..."
+                            />
+                        </div>
 
-                    // Footer
-                    React.createElement('div', { className: "absolute bottom-10 right-10 text-center" },
-                        React.createElement('div', { className: "w-40 border-b-2 border-gray-400 mb-2" }),
-                        React.createElement('p', { className: "font-bold" }, "Dr. William"),
-                        React.createElement('p', { className: "text-xs text-gray-500" }, "Certified Herbal Specialist")
-                    )
-                )
+                        {/* Signature */}
+                        <div className="mt-20 flex justify-end">
+                            <div className="text-center">
+                                <div className="w-48 border-b-2 border-gray-900 mb-2"></div>
+                                <p className="font-black text-gray-900 uppercase text-xs tracking-widest">Dr. William</p>
+                                <p className="text-[10px] text-gray-500">Medical Director & Herbalist</p>
+                            </div>
+                        </div>
+
+                        {/* Bottom Disclaimer */}
+                        <div className="absolute bottom-6 left-0 w-full text-center">
+                            <p className="text-[9px] text-gray-400 uppercase tracking-[0.3em]">Health is Wealth • Dr. William Herbal Clinic 2026</p>
+                        </div>
+                    </div>
+                </div>
             );
         };
 
-        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
